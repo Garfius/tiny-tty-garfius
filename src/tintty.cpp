@@ -104,7 +104,47 @@ void saveCursorCharacter()
 	cursor_backup_data.bg_color = state.bg_ansi_color;
 	cursor_backup_data.valid = true;
 }
+void _normalize_coordinates(tintty_display *display)
+{
+	// Calculate safe maximum row to prevent overflow
+	const int16_t SAFE_MAX_ROW = (UINT16_MAX / CHAR_HEIGHT) - display->screen_row_count;
 
+	// Calculate reduction amount - keep some history but bring values down
+	const int16_t reduction = min(state.top_row, SAFE_MAX_ROW / 2);
+
+	if (reduction > 0)
+	{
+		// Reduce all row-based coordinates by the same amount
+		state.cursor_row -= reduction;
+		state.top_row -= reduction;
+		state.out_char_row -= reduction;
+
+		// Adjust saved cursor position (it's stored relative to top_row)
+		// dec_saved_row is already relative, so no adjustment needed
+
+		// Ensure cursor stays within valid bounds
+		if (state.cursor_row < 0)
+		{
+			state.cursor_row = 0;
+		}
+		if (state.top_row < 0)
+		{
+			state.top_row = 0;
+		}
+		if (state.out_char_row < 0)
+		{
+			state.out_char_row = 0;
+		}
+
+		// Force a full screen refresh since coordinates have changed
+		rendered.top_row = -1;	  // Force scroll recalculation
+		rendered.cursor_col = -1; // Force cursor redraw
+		rendered.cursor_row = -1;
+
+		// Mark frame buffer for complete refresh
+		assureRefreshArea(0, 0, display->screen_width, display->screen_height);
+	}
+}
 // @todo support negative cursor_row
 void _render(tintty_display *display)
 {
@@ -135,7 +175,8 @@ void _render(tintty_display *display)
 
 		// Bounds check with faster comparison
 		if (state.out_char_row > (UINT16_MAX / CHAR_HEIGHT))
-			giveErrorVisibility(3, 2);
+			//giveErrorVisibility(3, 2);
+			_normalize_coordinates(display);
 
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
