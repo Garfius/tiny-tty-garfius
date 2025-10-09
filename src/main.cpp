@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "config.h"
 /**
+ * canvi de prova per el git
  * TinTTY main sketch
  * by Nick Matantsev 2017 & Gerard Forcada 2024
  *
@@ -170,12 +171,12 @@ void setup()
 	userTty = &Serial1; // assign receiving serial port
 
 	//-----------------------init
-	giveErrorVisibility(1,1,true);
+	giveErrorVisibility(1, 1, true);
 
 	spr.setColorDepth(8);
 
 	if (spr.createSprite(TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT)) == nullptr)
-		giveErrorVisibility(1,2);
+		giveErrorVisibility(1, 2);
 
 	spr.setTextSize(1);
 	spr.fillSprite(TFT_BLACK);
