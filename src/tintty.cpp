@@ -106,35 +106,30 @@ void saveCursorCharacter()
 }
 void _normalize_coordinates(tintty_display *display)
 {
-	// Calculate safe maximum row to prevent overflow
-	const int16_t SAFE_MAX_ROW = (UINT16_MAX / CHAR_HEIGHT) - display->screen_row_count;
+	// Calculate safe maximum row to prevent overflow - more conservative approach
+	const int16_t SAFE_MAX_ROW = (UINT16_MAX / CHAR_HEIGHT) - (display->screen_row_count * 2);
 
-	// Calculate reduction amount - keep some history but bring values down
-	const int16_t reduction = min(state.top_row, SAFE_MAX_ROW / 2);
-
-	if (reduction > 0)
+	// Only normalize if any coordinate is approaching overflow
+	if (state.cursor_row > SAFE_MAX_ROW ||
+		state.top_row > SAFE_MAX_ROW ||
+		state.out_char_row > SAFE_MAX_ROW)
 	{
+		// Calculate reduction amount - keep significant history but bring values down
+		int16_t reduction = max(state.top_row - display->screen_row_count, SAFE_MAX_ROW / 4);
+
+		// Ensure we have a meaningful reduction
+		if (reduction <= 0)
+		{
+			reduction = SAFE_MAX_ROW / 4;
+		}
+
 		// Reduce all row-based coordinates by the same amount
-		state.cursor_row -= reduction;
-		state.top_row -= reduction;
-		state.out_char_row -= reduction;
+		state.cursor_row = max(0, state.cursor_row - reduction);
+		state.top_row = max(0, state.top_row - reduction);
+		state.out_char_row = max(0, state.out_char_row - reduction);
 
 		// Adjust saved cursor position (it's stored relative to top_row)
 		// dec_saved_row is already relative, so no adjustment needed
-
-		// Ensure cursor stays within valid bounds
-		if (state.cursor_row < 0)
-		{
-			state.cursor_row = 0;
-		}
-		if (state.top_row < 0)
-		{
-			state.top_row = 0;
-		}
-		if (state.out_char_row < 0)
-		{
-			state.out_char_row = 0;
-		}
 
 		// Force a full screen refresh since coordinates have changed
 		rendered.top_row = -1;	  // Force scroll recalculation
@@ -148,6 +143,9 @@ void _normalize_coordinates(tintty_display *display)
 // @todo support negative cursor_row
 void _render(tintty_display *display)
 {
+	// Check and normalize coordinates before any rendering to prevent overflow
+	_normalize_coordinates(display);
+
 	// expose the cursor key mode state
 	tintty_cursor_key_mode_application = state.cursor_key_mode_application;
 	// if scrolling, prepare the "recycled" screen area
@@ -175,8 +173,7 @@ void _render(tintty_display *display)
 
 		// Bounds check with faster comparison
 		if (state.out_char_row > (UINT16_MAX / CHAR_HEIGHT))
-			//giveErrorVisibility(3, 2);
-			_normalize_coordinates(display);
+			giveErrorVisibility(3, 2);
 
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
@@ -280,7 +277,11 @@ void _render(tintty_display *display)
 	if (rendered.cursor_col < 0 && !state.cursor_hidden)
 	{
 		if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT > UINT16_MAX)
-			giveErrorVisibility(5, 2);
+		{
+			// Coordinates should have been normalized, but if we still hit overflow,
+			// skip cursor rendering for this frame
+			return;
+		}
 
 		// Save what's currently at cursor position
 		saveCursorCharacter();
@@ -310,6 +311,12 @@ void _ensure_cursor_vscroll(tintty_display *display)
 	if (state.cursor_row - state.top_row >= display->screen_row_count)
 	{
 		state.top_row = state.cursor_row - display->screen_row_count + 1;
+	}
+
+	// Check if coordinates are getting too large and normalize if needed
+	if (state.cursor_row > (UINT16_MAX / CHAR_HEIGHT) - display->screen_row_count)
+	{
+		_normalize_coordinates(display);
 	}
 }
 
