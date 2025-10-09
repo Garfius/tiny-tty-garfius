@@ -21,8 +21,7 @@ void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 	if (myCheesyFB.maxY < (y + h))
 		myCheesyFB.maxY = (y + h);
 }
-unsigned long nextCursorBlink;
-bool cursor_bar_shown;
+// Cursor blinking variables removed - using solid white background cursor
 
 const int16_t TAB_SIZE = 4;
 
@@ -63,20 +62,49 @@ struct tintty_rendered
 	int16_t top_row;
 };
 static tintty_rendered rendered;
+
+// Store cursor character and colors for restoration
+struct cursor_backup
+{
+	char character;
+	uint16_t fg_color;
+	uint16_t bg_color;
+	bool valid;
+} cursor_backup_data = {' ', 7, 0, false};
+
 void eraseCursor(tintty_display *display)
-{ // 255
-	if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX)
-		giveErrorVisibility(3,1);
-	/*tft.fillRect(
-		rendered.cursor_col * CHAR_WIDTH,
-		((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
-		CHAR_WIDTH,
-		1,
-		myPalette[state.bg_ansi_color] // @todo save the original background colour or even pixel values
-	);*/
-	// record the fact that cursor bar is not on screen
+{
+	if (cursor_backup_data.valid && rendered.cursor_col >= 0 && rendered.cursor_row >= 0)
+	{
+		if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT > UINT16_MAX)
+			giveErrorVisibility(3, 1);
+
+		// Restore the original character with its colors
+		const uint16_t x = rendered.cursor_col * CHAR_WIDTH;
+		const uint16_t y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height;
+
+		spr.setCursor(x, y);
+		spr.setTextColor(myPalette[cursor_backup_data.fg_color], myPalette[cursor_backup_data.bg_color]);
+		spr.write(cursor_backup_data.character);
+
+		assureRefreshArea(x, y, CHAR_WIDTH, CHAR_HEIGHT);
+		cursor_backup_data.valid = false;
+	}
+	// record the fact that cursor is not on screen
 	rendered.cursor_col = -1;
 }
+
+// Function to save the character at cursor position for restoration
+void saveCursorCharacter()
+{
+	// For now, we'll assume space character with current colors
+	// In a more complete implementation, you'd read from a character buffer
+	cursor_backup_data.character = ' ';
+	cursor_backup_data.fg_color = state.fg_ansi_color;
+	cursor_backup_data.bg_color = state.bg_ansi_color;
+	cursor_backup_data.valid = true;
+}
+
 // @todo support negative cursor_row
 void _render(tintty_display *display)
 {
@@ -88,7 +116,7 @@ void _render(tintty_display *display)
 		// clear the new piece of screen to be recycled as blank space
 		// @todo handle scroll-up
 		if (static_cast<unsigned long long>(state.top_row) * CHAR_HEIGHT > INT_MAX)
-			giveErrorVisibility(3,3);
+			giveErrorVisibility(3, 3);
 
 		spr.scroll(0, -((state.top_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height); // scroll stext 0 pixels left/right, 16 up
 		assureRefreshArea(0, 0, TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
@@ -107,7 +135,7 @@ void _render(tintty_display *display)
 
 		// Bounds check with faster comparison
 		if (state.out_char_row > (UINT16_MAX / CHAR_HEIGHT))
-			giveErrorVisibility(3,2);
+			giveErrorVisibility(3, 2);
 
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
@@ -115,12 +143,7 @@ void _render(tintty_display *display)
 		const uint16_t fg_TFT__color = state.bold ? myPalette[state.fg_ansi_color + 8] : myPalette[state.fg_ansi_color];
 		const uint16_t bg_TFT__color = myPalette[state.bg_ansi_color];
 
-		// Optimize cursor handling
-		if (!myCheesyFB.hasChanges && cursor_bar_shown)
-		{
-			eraseCursor(display);
-			cursor_bar_shown = false;
-		}
+		// Optimize cursor handling - no blinking needed for white background cursor
 
 		// write to sprite buffer - batch operations when possible
 		spr.setCursor(x, y);
@@ -136,7 +159,7 @@ void _render(tintty_display *display)
 			const int16_t line_before_chars = min(state.out_char_col, state.out_clear_before);
 			const int16_t lines_before = (state.out_clear_before - line_before_chars) / display->screen_col_count;
 			if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX)
-				giveErrorVisibility(4,1);
+				giveErrorVisibility(4, 1);
 			display->fill_rect(
 				(state.out_char_col - line_before_chars) * CHAR_WIDTH,
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -146,9 +169,9 @@ void _render(tintty_display *display)
 			for (int16_t i = 0; i < lines_before; i += 1)
 			{
 				if (static_cast<unsigned long long>(state.out_char_row - 1 - i) * CHAR_HEIGHT > UINT16_MAX)
-					giveErrorVisibility(4,2);
+					giveErrorVisibility(4, 2);
 				if ((state.out_char_row - 1 - i) < 0)
-					giveErrorVisibility(4,3);
+					giveErrorVisibility(4, 3);
 				display->fill_rect(
 					0,
 					(((state.out_char_row - rendered.top_row) - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -165,7 +188,7 @@ void _render(tintty_display *display)
 			const int16_t line_after_chars = min(display->screen_col_count - 1 - state.out_char_col, state.out_clear_after);
 			const int16_t lines_after = (state.out_clear_after - line_after_chars) / display->screen_col_count;
 			if (static_cast<unsigned long long>(state.out_char_row) * CHAR_HEIGHT > UINT16_MAX)
-				giveErrorVisibility(4,4);
+				giveErrorVisibility(4, 4);
 			display->fill_rect(
 				(state.out_char_col + 1) * CHAR_WIDTH,
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -176,7 +199,7 @@ void _render(tintty_display *display)
 			for (int16_t i = 0; i < lines_after; i += 1)
 			{
 				if (static_cast<unsigned long long>(state.out_char_row + 1 + i) * CHAR_HEIGHT > UINT16_MAX)
-					giveErrorVisibility(5,1);
+					giveErrorVisibility(5, 1);
 				display->fill_rect(
 					0,
 					(((state.out_char_row - rendered.top_row) + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
@@ -200,48 +223,41 @@ void _render(tintty_display *display)
 		}
 	}
 	//----------------------------------tractament de cursor inici----------------------------------
-	// cal borra cursor - optimized cursor blinking
-	static uint8_t cursor_check_counter = 0;
+	// White background cursor (always visible, no blinking)
 
-	// Only check cursor blink timing occasionally to reduce overhead
-	if (!myCheesyFB.hasChanges && (cursor_check_counter == 0) && (millis() > nextCursorBlink))
-	{
-		cursor_bar_shown = !cursor_bar_shown;
-		nextCursorBlink = millis() + cursorBlinkDelay;
-	}
-	cursor_check_counter = (cursor_check_counter + 1) % CURSOR_BLINK_SKIP;
-	// clear existing rendered cursor bar if needed
-	// @todo detect if it is already cleared during scroll
+	// clear existing rendered cursor if position changed or if we need to refresh
 	if (rendered.cursor_col >= 0)
 	{
-		if (
-			!cursor_bar_shown ||
-			rendered.cursor_col != state.cursor_col ||
+		if (rendered.cursor_col != state.cursor_col ||
 			rendered.cursor_row != state.cursor_row)
 		{
-			eraseCursor(display); // 104
+			eraseCursor(display);
 		}
 	}
 
-	// render new cursor bar if not already shown
-	// (sometimes right after clearing existing bar)
-	if (rendered.cursor_col < 0)
+	// render new cursor if not already shown and cursor is not hidden
+	if (rendered.cursor_col < 0 && !state.cursor_hidden)
 	{
-		if (cursor_bar_shown)
-		{
-			if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1 > UINT16_MAX)
-				giveErrorVisibility(5,2);
-			/*tft.fillRect( // aquest draw no ha de forçar redraw de tot
-			state.cursor_col * CHAR_WIDTH,
-			((state.cursor_row - rendered.top_row) * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
-			CHAR_WIDTH,
-			1,
-			state.bold ? myPalette[state.fg_ansi_color + 8] : myPalette[state.fg_ansi_color]);
-			*/
-			// save new rendered state
-			rendered.cursor_col = state.cursor_col;
-			rendered.cursor_row = state.cursor_row;
-		}
+		if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT > UINT16_MAX)
+			giveErrorVisibility(5, 2);
+
+		// Save what's currently at cursor position
+		saveCursorCharacter();
+
+		// Draw cursor as character with white background
+		const uint16_t x = state.cursor_col * CHAR_WIDTH;
+		const uint16_t y = ((state.cursor_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height;
+
+		spr.setCursor(x, y);
+		// Use black text on white background for cursor
+		spr.setTextColor(myPalette[0], myPalette[7]); // Black text on white background
+		spr.write(cursor_backup_data.character);
+
+		assureRefreshArea(x, y, CHAR_WIDTH, CHAR_HEIGHT);
+
+		// save new rendered state
+		rendered.cursor_col = state.cursor_col;
+		rendered.cursor_row = state.cursor_row;
 	}
 	//----------------------------------tractament de cursor fi----------------------------------
 }
@@ -844,8 +860,9 @@ void tintty_run(
 
 	// main read cycle
 	userTty->flush();
-	while (userTty->available() > 0)userTty->read();
-	
+	while (userTty->available() > 0)
+		userTty->read();
+
 	while (1)
 	{
 
@@ -862,10 +879,9 @@ void tintty_idle(tintty_display *display)
 	}
 	vTaskReadSerial();
 
-	// Only render if there are changes or periodically for cursor
+	// Only render if there are changes - no cursor blinking needed
 	bool should_render = myCheesyFB.hasChanges ||
-						 (render_skip_counter == 0) ||
-						 (millis() > nextCursorBlink);
+						 (render_skip_counter == 0);
 
 	if (should_render)
 	{
