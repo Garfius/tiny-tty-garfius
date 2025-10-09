@@ -1,0 +1,75 @@
+tintty.cpp:74:    // @todo deal with integer overflow
+tintty.cpp:106:            // @todo deal with overflow from multiplication by CHAR_HEIGHT
+tintty.cpp:137:        display->set_vscroll((state.top_row * CHAR_HEIGHT) % display->screen_height); // @todo deal with overflow from multiplication
+tintty.cpp:146:        const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication
+tintty.cpp:169:                (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+tintty.cpp:178:                    ((state.out_char_row - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+tintty.cpp:194:                (state.out_char_row * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+tintty.cpp:203:                    ((state.out_char_row + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
+tintty.cpp:242:                (rendered.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
+tintty.cpp:259:                (state.cursor_row * CHAR_HEIGHT + CHAR_HEIGHT - 1) % display->screen_height, // @todo deal with overflow from multiplication
+------------------------------------------------------------------------------------
+
+
+		const uint16_t x = state.out_char_col * CHAR_WIDTH;
+        const uint16_t y = (state.out_char_row * CHAR_HEIGHT) % display->screen_height; // @todo deal with overflow from multiplication <------- AQUI !!!
+		const uint16_t fg_TFT__color = state.bold ? ANSI_BOLD_COLORS[state.fg_ansi_color] : ANSI_COLORS[state.fg_ansi_color];
+        const uint16_t bg_TFT__color = ANSI_COLORS[state.bg_ansi_color];
+
+		const int char_base = (
+            (char_set & 0x01) * 128 + // ensure 0-1 value
+            (state.out_char & 0x7f) // ensure max 7-bit character value
+        ) * 6;
+        const uint16_t fg_b = (fg_TFT__color & 0x001F) / 3; // @todo precompute division?
+        const uint16_t fg_g = ((fg_TFT__color & 0x07E0) >> 5) / 3;
+        const uint16_t fg_r = ((fg_TFT__color & 0xF800) >> 11) / 3;
+
+        const uint16_t bg_b = (bg_TFT__color & 0x001F) / 3;
+        const uint16_t bg_g = ((bg_TFT__color & 0x07E0) >> 5) / 3;
+        const uint16_t bg_r = ((bg_TFT__color & 0xF800) >> 11) / 3;
+		
+		for (int char_font_row = 0; char_font_row < 6; char_font_row++) {
+            const unsigned char font_hline = pgm_read_byte(&font454[char_base + char_font_row]);
+
+            for (int char_font_bitoffset = 6; char_font_bitoffset >= 0; char_font_bitoffset -= 2) {
+                const unsigned char font_hline_mask = 3 << char_font_bitoffset;
+                const unsigned char fg_value = (font_hline & font_hline_mask) >> char_font_bitoffset;
+
+                // lerp colour components
+                const unsigned char bg_value = 3 - fg_value;
+
+                const uint16_t b = (fg_b * fg_value + bg_b * bg_value);
+                const uint16_t g = (fg_g * fg_value + bg_g * bg_value) << 5;
+                const uint16_t r = (fg_r * fg_value + bg_r * bg_value) << 11;
+
+                *pushedDataHead = (r | g | b);
+                pushedDataHead++;
+            }
+        }
+		
+
+        // perform TFT data push up to bottom edge of buffer
+        const int preWrapHeight = min(display->screen_height - y, 6);
+        const int postWrapHeight = 6 - preWrapHeight;
+
+        display->draw_pixels(
+            x,
+            y,
+            4,
+            preWrapHeight,
+            pushedData
+        );
+		
+
+        // perform TFT data push wrapped around from top edge of buffer
+        if (postWrapHeight > 0) {
+            display->draw_pixels(
+                x,
+                0,
+                4,
+                postWrapHeight,
+                pushedData + 4 * preWrapHeight
+            );
+        }
+
+		-------aconseguir un drawPixels imprimint una font de TFF_eSPI
