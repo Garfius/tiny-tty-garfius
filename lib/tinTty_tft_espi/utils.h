@@ -49,6 +49,7 @@ void giveErrorVisibility(int slow, int fast, bool init=false);
 	bool getTouchDisplay(uint16_t *x, uint16_t *y);
 	void setCalibrationData(uint16_t *parameters);
 	void xpt2046CalibrateSet();
+	bool isTouching();
 #endif
 
 extern CharBuffer buffer;

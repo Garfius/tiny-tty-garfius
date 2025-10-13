@@ -338,10 +338,11 @@ unsigned int lastTouch = 0;
 */
 void input_idle() {// passar a lastTouch, permetre baixar 
     #ifdef touchNoEspi
-        if (TouchDetected && getTouchDisplay(&xpos, &ypos)) {
+        if (TouchDetected && isTouching()) {
     #else
         if (TouchDetected && tft.getTouch(&xpos, &ypos,TOUCH_SENSIVITY)) {
     #endif
+            getTouchDisplay(&xpos, &ypos);
             tft.drawCircle(xpos,ypos,5,TFT_GREEN);
             return;
         lastTouch = millis();

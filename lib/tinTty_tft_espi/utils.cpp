@@ -59,11 +59,24 @@ void tft_espi_calibrate_touch()
 #else
 uint16_t touchCalibration_x0 = 300, touchCalibration_x1 = 3600, touchCalibration_y0 = 300, touchCalibration_y1 = 3600;
 uint8_t  touchCalibration_rotate = 1, touchCalibration_invert_x = 2, touchCalibration_invert_y = 0;
+bool isTouching(){
+  uint16_t z1 = 1;
+  uint16_t z2 = 0;
+	
+	while (z1 > z2)
+	{
+		z2 = z1;
+		z1 = ts.getTouchRawZ();
+		delay(1);
+	}
 
+  if (z1 <= TOUCH_SENSIVITY) return false;
+  return true;
+}
 bool getTouchRaw(uint16_t *x, uint16_t *y){
   TS_Point puntTmp;
-  bool touchOk;
-	if(!ts.touched())return false;
+  //if(!isTouching())return false;
+  
 	puntTmp = ts.getPoint();
 	*x = puntTmp.x;
 	*y = puntTmp.y;
@@ -142,7 +155,8 @@ void xpt2046CalibrateGet(uint16_t *parameters, uint32_t color_fg, uint32_t color
 
     for(uint8_t j= 0; j<8; j++){
       // Use a lower detect threshold as corners tend to be less sensitive
-	  while(!getTouchRaw(&x_tmp, &y_tmp));
+	  while(!isTouching());
+	  getTouchRaw(&x_tmp, &y_tmp);
       values[i*2  ] += x_tmp;
       values[i*2+1] += y_tmp;
       }
@@ -232,7 +246,7 @@ void xpt2046CalibrateSet()
 	calDataTst = ~EEPROM.read(1);
 	calDataOK = calDataOK == calDataTst;
 	int eePos = 2;
-	if (calDataOK && (!getTouchDisplay(&calibrationData[5], &calibrationData[6])))
+	if (calDataOK && (!isTouching()))
 	{
 		// calibration data valid & NO TSOLICITED
 		for (int i = 0; i < 10; i++)
@@ -245,29 +259,29 @@ void xpt2046CalibrateSet()
 	}
 	else
 	{
-		if (getTouchDisplay(&calibrationData[5], &calibrationData[6]))
+		if (isTouching())
 		{
 			tft.fillScreen(TFT_YELLOW);
 			delay(1000);
 			tft.fillScreen(TFT_BLACK);
-		}
-		// data not valid. recalibrate
-		xpt2046CalibrateGet(calibrationData, TFT_WHITE, TFT_RED, 15);
-		// store data
-		while (calDataOK == EEPROM.read(0))
+			// data not valid. recalibrate
+			xpt2046CalibrateGet(calibrationData, TFT_WHITE, TFT_RED, 15);
+			// store data
+			while (calDataOK == EEPROM.read(0))
 			calDataOK = (uint8_t)random(0, 255); // firma
-		EEPROM.write(0, calDataOK);
-		calDataTst = ~calDataOK;
-		EEPROM.write(1, calDataTst);
-		int eePos = 2;
-		for (int i = 0; i < 10; i++)
-		{
-			calDataTst = calibrationDataBytePoint[i];
-			EEPROM.write(eePos + i, calDataTst);
-			eePos++;
+			EEPROM.write(0, calDataOK);
+			calDataTst = ~calDataOK;
+			EEPROM.write(1, calDataTst);
+			int eePos = 2;
+			for (int i = 0; i < 10; i++)
+			{
+				calDataTst = calibrationDataBytePoint[i];
+				EEPROM.write(eePos + i, calDataTst);
+				eePos++;
+			}
+			EEPROM.commit();
+			EEPROM.end();
 		}
-		EEPROM.commit();
-		EEPROM.end();
 	}
 	tft.fillScreen(TFT_BLACK);
 }

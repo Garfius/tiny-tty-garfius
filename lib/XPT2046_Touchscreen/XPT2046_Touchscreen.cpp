@@ -22,7 +22,6 @@
 
 #include "XPT2046_Touchscreen.h"
 
-//#define _zThreshold 400
 #define _zThreshold_INT 75
 #define MSEC_THRESHOLD 3
 #define SPI_SETTING SPISettings(2000000, MSBFIRST, SPI_MODE0)
@@ -106,6 +105,25 @@ static int16_t besttwoavg(int16_t x, int16_t y, int16_t z)
 		reta = (y + z) >> 1; //    else if ( dc <= da && dc <= db ) reta = (x + y) >> 1;
 
 	return (reta);
+}
+uint16_t XPT2046_Touchscreen::getTouchRawZ(){
+
+  _spi->beginTransaction(SPI_SETTING);
+  digitalWrite(csPin, LOW);
+
+
+  // Z sample request
+  int16_t tz = 0xFFF;
+  _spi->transfer(0xb0);               // Start new Z1 conversion
+  tz += _spi->transfer16(0xc0) >> 3;  // Read Z1 and start Z2 conversion
+  tz -= _spi->transfer16(0x00) >> 3;  // Read Z2
+
+  digitalWrite(csPin, HIGH);
+  _spi->endTransaction();
+
+  if (tz == 4095) tz = 0;
+
+  return (uint16_t)tz;
 }
 
 // TODO: perhaps a future version should offer an option for more oversampling,

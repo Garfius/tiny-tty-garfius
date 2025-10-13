@@ -24,7 +24,7 @@
 #define TOUCH_IRQ 8
 //
 
-#define TOUCH_SENSIVITY 600
+#define TOUCH_SENSIVITY 400
 #define touchNoEspi// <------setCalibrationData
 
 // varis

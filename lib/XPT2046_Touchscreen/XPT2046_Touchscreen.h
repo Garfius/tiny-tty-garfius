@@ -53,6 +53,7 @@ public:
 	bool bufferEmpty();
 	uint8_t bufferSize() { return 1; }
 	void setRotation(uint8_t n) { rotation = n % 4; }
+	uint16_t getTouchRawZ();
 	// protected:
 	volatile bool isrWake = true;
 	int16_t _zThreshold=0;
