@@ -45,7 +45,7 @@ class XPT2046_Touchscreen
 public:
 	constexpr XPT2046_Touchscreen(uint8_t cspin, uint8_t tirq = 255, SPIClass *spi = &SPI)
 		: csPin(cspin), tirqPin(tirq), _spi(spi) {}
-	bool begin();
+	bool begin(int16_t zThreshold);
 	TS_Point getPoint();
 	bool tirqTouched();
 	bool touched();
@@ -55,7 +55,7 @@ public:
 	void setRotation(uint8_t n) { rotation = n % 4; }
 	// protected:
 	volatile bool isrWake = true;
-
+	int16_t _zThreshold=0;
 private:
 	void update();
 	uint8_t csPin, tirqPin, rotation = 1;

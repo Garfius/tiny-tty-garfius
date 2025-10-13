@@ -22,16 +22,16 @@
 
 #include "XPT2046_Touchscreen.h"
 
-#define Z_THRESHOLD 400
-#define Z_THRESHOLD_INT 75
+//#define _zThreshold 400
+#define _zThreshold_INT 75
 #define MSEC_THRESHOLD 3
 #define SPI_SETTING SPISettings(2000000, MSBFIRST, SPI_MODE0)
 
 static XPT2046_Touchscreen *isrPinptr;
 void isrPin(void);
 
-bool XPT2046_Touchscreen::begin()
-{
+bool XPT2046_Touchscreen::begin(int16_t zThreshold){
+	_zThreshold = zThreshold;
 	_spi->begin();
 	pinMode(csPin, OUTPUT);
 	digitalWrite(csPin, HIGH);
@@ -65,7 +65,7 @@ bool XPT2046_Touchscreen::tirqTouched()
 bool XPT2046_Touchscreen::touched()
 {
 	update();
-	return (zraw >= Z_THRESHOLD);
+	return (zraw >= _zThreshold);
 }
 
 void XPT2046_Touchscreen::readData(uint16_t *x, uint16_t *y, uint8_t *z)
@@ -128,7 +128,7 @@ void XPT2046_Touchscreen::update()
 	int z = z1 + 4095;
 	int16_t z2 = _spi->transfer16(0x91 /* X */) >> 3;
 	z -= z2;
-	if (z >= Z_THRESHOLD)
+	if (z >= _zThreshold)
 	{
 		_spi->transfer16(0x91 /* X */); // dummy X measure, 1st is always noisy
 		data[0] = _spi->transfer16(0xD1 /* Y */) >> 3;
@@ -145,11 +145,11 @@ void XPT2046_Touchscreen::update()
 	// Serial.printf("z=%d  ::  z1=%d,  z2=%d  ", z, z1, z2);
 	if (z < 0)
 		z = 0;
-	if (z < Z_THRESHOLD)
+	if (z < _zThreshold)
 	{ //	if ( !touched ) {
 		// Serial.println();
 		zraw = 0;
-		if (z < Z_THRESHOLD_INT)
+		if (z < _zThreshold_INT)
 		{ //	if ( !touched ) {
 			if (255 != tirqPin)
 				isrWake = false;
@@ -167,7 +167,7 @@ void XPT2046_Touchscreen::update()
 
 	// Serial.printf("    %d,%d", x, y);
 	// Serial.println();
-	if (z >= Z_THRESHOLD)
+	if (z >= _zThreshold)
 	{
 		msraw = now; // good read completed, set wait
 		switch (rotation)

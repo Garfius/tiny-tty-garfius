@@ -27,6 +27,14 @@
         "fstream": "cpp",
         "ostream": "cpp",
         "sstream": "cpp",
-        "streambuf": "cpp"
+        "streambuf": "cpp",
+        "chrono": "cpp",
+        "mutex": "cpp",
+        "span": "cpp",
+        "text_encoding": "cpp",
+        "thread": "cpp",
+        "regex": "cpp",
+        "*.tinttygarf": "cpp",
+        "*.touchsimpleok": "cpp"
     }
 }

@@ -19,7 +19,7 @@ void setup() {
     delay(10);
   }
 
-  ts.begin();
+  ts.begin(400);
   ts.setRotation(1);
   while (!Serial && (millis() <= 1000));
   Serial.println("BOOT");

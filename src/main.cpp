@@ -1,11 +1,10 @@
-#include <Arduino.h>
-#include <SPI.h>
-#include <EEPROM.h>
 #include "Free_Fonts.h" // Include the header file attached to this sketch from TFT_eSPI
-#include "input.h"
+#include <Arduino.h>
+#include <EEPROM.h>
+#include <SPI.h>
 #include "tintty.h"
 #include "utils.h"
-#include "config.h"
+#include "input.h"
 /**
  * canvi de prova per el git
  * TinTTY main sketch
@@ -162,10 +161,10 @@ void setup()
 	// Optimize Serial FIFO for better performance
 	Serial1.setFIFOSize(512); // Increased buffer size
 
-	EEPROM.begin(255);
 	tft.begin();
 	tft.setFreeFont(GLCD);
-
+	tft.setTextSize(1);
+	tft.setRotation(0);
 	gpio_pull_up(2); // ensure pull-up for receiving wire
 
 	userTty = &Serial1; // assign receiving serial port
@@ -180,16 +179,16 @@ void setup()
 
 	spr.setTextSize(1);
 	spr.fillSprite(TFT_BLACK);
-
-	tft_espi_calibrate_touch();
-
-	pinMode(TOUCH_IRQ, INPUT);
-
+	#ifdef touchNoEspi
+		xpt2046CalibrateSet();
+	#else
+		tft_espi_calibrate_touch();
+	#endif
+	
 	Serial1.begin(chooseBauds(), SERIAL_8N1);
-
-	tft.setTextSize(1);
-
+	
 	input_init();
+	
 
 	//---------------go!
 	running = true;
