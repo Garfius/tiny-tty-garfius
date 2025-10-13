@@ -5,4 +5,5 @@
 .vscode/ipch
 /lib/**
 !/lib/tinTty_tft_espi
-!/lib/XPT2046_Touchscreen
+!/lib/tinTty_tft_espi/**
+!/lib/XPT2046_Touchscreen/**
