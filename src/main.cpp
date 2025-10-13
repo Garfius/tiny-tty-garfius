@@ -164,7 +164,7 @@ void setup()
 	tft.begin();
 	tft.setFreeFont(GLCD);
 	tft.setTextSize(1);
-	tft.setRotation(0);
+	//tft.setRotation(0);
 	gpio_pull_up(2); // ensure pull-up for receiving wire
 
 	userTty = &Serial1; // assign receiving serial port

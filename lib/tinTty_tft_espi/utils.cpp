@@ -400,4 +400,6 @@ void giveErrorVisibility(int fast,int slow, bool init)
 
 CharBuffer buffer = CharBuffer(INPUT_BUFFER_SIZE, myCharBuffer);
 CharBuffer bufferoUT = CharBuffer(OUTPUT_BUFFER_SIZE, myCharBuffer2);
-XPT2046_Touchscreen ts(TOUCH_CS_PIN, 255,&SPI1);
+#ifdef touchNoEspi
+	XPT2046_Touchscreen ts(TOUCH_CS_PIN, 255,&SPI1);
+#endif
