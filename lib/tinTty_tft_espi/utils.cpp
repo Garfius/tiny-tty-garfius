@@ -1,5 +1,6 @@
 #include <EEPROM.h>
 #include <utils.h>
+
 #ifndef touchNoEspi
 /**
  * NOT optimized AT ALL! just debugged
@@ -215,22 +216,6 @@ void xpt2046CalibrateGet(uint16_t *parameters, uint32_t color_fg, uint32_t color
     parameters[4] = touchCalibration_rotate | (touchCalibration_invert_x <<1) | (touchCalibration_invert_y <<2);
   }
 }
-void setCalibrationData(uint16_t *parameters){
-  touchCalibration_x0 = parameters[0];
-  touchCalibration_x1 = parameters[1];
-  touchCalibration_y0 = parameters[2];
-  touchCalibration_y1 = parameters[3];
-
-  if(touchCalibration_x0 == 0) touchCalibration_x0 = 1;
-  if(touchCalibration_x1 == 0) touchCalibration_x1 = 1;
-  if(touchCalibration_y0 == 0) touchCalibration_y0 = 1;
-  if(touchCalibration_y1 == 0) touchCalibration_y1 = 1;
-
-  touchCalibration_rotate = parameters[4] & 0x01;
-  touchCalibration_invert_x = parameters[4] & 0x02;
-  touchCalibration_invert_y = parameters[4] & 0x04;
-}
-
 void xpt2046CalibrateSet()
 {
 	EEPROM.begin(255);

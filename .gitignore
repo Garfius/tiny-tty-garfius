@@ -6,4 +6,5 @@
 /lib/**
 !/lib/tinTty_tft_espi
 !/lib/tinTty_tft_espi/**
-!/lib/XPT2046_Touchscreen/**
+!/lib/XPT2046_HR2046_touch
+!/lib/XPT2046_HR2046_touch/**
