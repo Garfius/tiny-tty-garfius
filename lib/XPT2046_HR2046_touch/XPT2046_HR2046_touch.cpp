@@ -152,7 +152,7 @@ uint8_t XPT2046_HR2046_touch::validTouch(uint16_t *x, uint16_t *y, uint16_t thre
 
 /***************************************************************************************
 ** Function name:           getTouch
-** Description:             read callibrated position. Return false if not pressed.
+** Description:             read calibrated position. Return false if not pressed.
 ***************************************************************************************/
 uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t threshold)
 {

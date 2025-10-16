@@ -6,7 +6,6 @@
 
 #define SPI_TOUCH_FREQUENCY 2500000
 #define TOUCH_THRESHOLD 600
-#define Z_THRESHOLD 350 // Touch pressure threshold for validating touches
 
 class XPT2046_HR2046_touch
 {
