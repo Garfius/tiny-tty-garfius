@@ -342,7 +342,7 @@ void input_idle() {// passar a lastTouch, permetre baixar
     #else
         if (TouchDetected && tft.getTouch(&xpos, &ypos,TOUCH_SENSIVITY)) {
     #endif
-            getTouchDisplay(&xpos, &ypos);
+            //getTouchDisplay(&xpos, &ypos);
             tft.drawCircle(xpos,ypos,5,TFT_GREEN);
             return;
         lastTouch = millis();

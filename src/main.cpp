@@ -32,97 +32,100 @@ public:
 		{
 			if (i > 0)
 				delay(1000);
-			endTime = millis() + 10000;
+			endTime = millis() + 5000;
 			// init reversed values
 			switch (i)
 			{
-			case 0: // Top-left, min x , min y
-				values[i * 2] = 4095;
-				values[i * 2 + 1] = 4095;
-				break;
-			case 1: // Top-right,, min x , max y
+				case 0:
 				values[i * 2] = 4095;
 				values[i * 2 + 1] = 0;
 				break;
-			case 2: // Bottom-right, max x , min y
-				values[i * 2] = 0;
+				case 1:
+				values[i * 2] = 4095;
 				values[i * 2 + 1] = 4095;
 				break;
-			case 3: // Bottom-left, max x , max y
+				case 2:
 				values[i * 2] = 0;
 				values[i * 2 + 1] = 0;
 				break;
-				bool better;
-				int touches = 0;
+				case 3:
+				values[i * 2] = 0;
+				values[i * 2 + 1] = 4095;
+					break;
+			}
+			bool better;
+			int touches = 0;
+			tft.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+			tft.setTextColor(TFT_WHITE, TFT_BLACK);
+			tft.print("      ");
+			while (millis() < endTime)
+			{
+				better = false;
+				this->drawArrowToCorner(i, step, false);
 				tft.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-				tft.setTextColor(TFT_WHITE, TFT_BLACK);
-				tft.print("      ");
-				while (millis() < endTime)
+				tft.setTextColor(TFT_WHITE, better ? TFT_GREEN : TFT_RED);
+				tft.printf("T:%d", touches);
+				if (ts.validTouch(&x_tmp, &y_tmp))
 				{
-					better = false;
-					this->drawArrowToCorner(i, step, false);
-					tft.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
-					tft.setTextColor(TFT_WHITE, better ? TFT_GREEN : TFT_RED);
-					tft.printf("T:%d", touches);
-					if (ts.isTouching() && ts.validTouch(&x_tmp, &y_tmp))
+					touches++;
+					switch (i)
 					{
-						touches++;
-						switch (i)
+					case 0:
+						if (values[i * 2] > x_tmp)
 						{
-						case 0: // Top-left, min x , min y
-							if (values[i * 2] > x_tmp)
-							{
-								values[i * 2] = x_tmp;
-								better = true;
-							}
-							if (values[i * 2 + 1] > y_tmp)
-							{
-								values[i * 2 + 1] = y_tmp;
-								better = true;
-							}
-							break;
-						case 1: // Top-right,, min x , max y
-							if (values[i * 2] > x_tmp)
-							{
-								values[i * 2] = x_tmp;
-								better = true;
-							}
-							if (values[i * 2 + 1] < y_tmp)
-							{
-								values[i * 2 + 1] = y_tmp;
-								better = true;
-							}
-							break;
-						case 2: // Bottom-right, max x , min y
-							if (values[i * 2] < x_tmp)
-							{
-								values[i * 2] = x_tmp;
-								better = true;
-							}
-							if (values[i * 2 + 1] > y_tmp)
-							{
-								values[i * 2 + 1] = y_tmp;
-								better = true;
-							}
-							break;
-						case 3: // Bottom-left, max x , max y
-							if (values[i * 2] < x_tmp)
-							{
-								values[i * 2] = x_tmp;
-								better = true;
-							}
-							if (values[i * 2 + 1] < y_tmp)
-							{
-								values[i * 2 + 1] = y_tmp;
-								better = true;
-							}
-							break;
+							values[i * 2] = x_tmp;
+							better = true;
 						}
-						delay(10);
-						this->drawArrowToCorner(i, step, true);
+						if (values[i * 2 + 1] < y_tmp)
+						{
+							values[i * 2 + 1] = y_tmp;
+							better = true;
+						}
+
+						break;
+					case 1:
+						if (values[i * 2] > x_tmp)
+                        {
+                            values[i * 2] = x_tmp;
+                            better = true;
+                        }
+                        if (values[i * 2 + 1] > y_tmp)
+                        {
+                            values[i * 2 + 1] = y_tmp;
+                            better = true;
+                        }
+
+						break;
+					case 2:
+						if (values[i * 2] < x_tmp)
+						{
+							values[i * 2] = x_tmp;
+							better = true;
+						}
+						if (values[i * 2 + 1] < y_tmp)
+						{
+							values[i * 2 + 1] = y_tmp;
+							better = true;
+						}
+						
+						break;
+					case 3:
+						if (values[i * 2] < x_tmp)
+						{
+							values[i * 2] = x_tmp;
+							better = true;
+						}
+						if (values[i * 2 + 1] > y_tmp)
+						{
+							values[i * 2 + 1] = y_tmp;
+							better = true;
+						}
+						break;
 					}
-					(step < totalSteps) ? step++ : step = 0;
 				}
+				delay(10);
+				this->drawArrowToCorner(i, step, true);
+				(step < totalSteps) ? step++ : step = 0;
 			}
 		}
 
@@ -246,10 +249,10 @@ public:
 	{
 		// Corner positions
 		int corners[4][2] = {
-			{1, 1},							 // Top-left
-			{TFT_WIDTH - 1, 1},				 // Top-right
-			{TFT_WIDTH - 1, TFT_HEIGHT - 1}, // Bottom-right
-			{1, TFT_HEIGHT - 1}				 // Bottom-left
+			{1, 1},							 // Top-left - bx dre
+			{1, TFT_HEIGHT - 1},				 // Bottom-left - dl dre
+			{TFT_WIDTH - 1, 1},				 // Top-right - bx esq
+			{TFT_WIDTH - 1, TFT_HEIGHT - 1}, // Bottom-right - dl esq
 		};
 		int ex = corners[corner][0];
 		int ey = corners[corner][1];
@@ -261,19 +264,19 @@ public:
 		case 0:
 			sx += start_dist;
 			sy += start_dist;
-			break; // Top-left
+			break; // Top-left - bx dre
 		case 1:
-			sx -= start_dist;
-			sy += start_dist;
-			break; // Top-right
-		case 2:
-			sx -= start_dist;
-			sy -= start_dist;
-			break; // Bottom-right
-		case 3:
 			sx += start_dist;
 			sy -= start_dist;
-			break; // Bottom-left
+			break; // Bottom-left - dl dre
+		case 2:
+			sx -= start_dist;
+			sy += start_dist;
+			break; // Top-right - bx esq
+		case 3:
+			sx -= start_dist;
+			sy -= start_dist;
+			break; // Bottom-right - dl esq
 		}
 
 		float progress = (float)step / totalSteps;
@@ -282,32 +285,32 @@ public:
 
 		// Draw arrow line
 		tft.drawLine(sx, sy, ax, ay, erase ? TFT_BLACK : TFT_WHITE);
-
+		
 		// Draw simple arrowhead (vertical/horizontal only, no trig)
 		int hx1 = ax, hy1 = ay, hx2 = ax, hy2 = ay;
 		int arrow_size = 15;
 		switch (corner)
 		{
-		case 0: // Top-left
+		case 0: // Top-left - bx dre
 			hx1 = ax + arrow_size;
 			hy1 = ay;
 			hx2 = ax;
 			hy2 = ay + arrow_size;
-			break;
-		case 1: // Top-right
-			hx1 = ax - arrow_size;
-			hy1 = ay;
-			hx2 = ax;
-			hy2 = ay + arrow_size;
-			break;
-		case 2: // Bottom-right
-			hx1 = ax - arrow_size;
+		break;
+		case 1: // Bottom-left - dl dre
+			hx1 = ax + arrow_size;
 			hy1 = ay;
 			hx2 = ax;
 			hy2 = ay - arrow_size;
 			break;
-		case 3: // Bottom-left
-			hx1 = ax + arrow_size;
+		case 2: // Top-right - bx esq
+			hx1 = ax - arrow_size;
+			hy1 = ay;
+			hx2 = ax;
+			hy2 = ay + arrow_size;
+			break;
+		case 3: // Bottom-right - dl esq
+			hx1 = ax - arrow_size;
 			hy1 = ay;
 			hx2 = ax;
 			hy2 = ay - arrow_size;

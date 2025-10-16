@@ -25,7 +25,7 @@
 //
 
 #define TOUCH_SENSIVITY 400
-#define touchNoEspi// <------setCalibrationData
+//#define touchNoEspi// <------setCalibrationData
 
 // varis
 #define INPUT_BUFFER_SIZE 400
