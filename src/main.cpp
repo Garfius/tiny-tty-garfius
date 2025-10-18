@@ -2,10 +2,11 @@
 #include <SPI.h>
 #include <XPT2046_HR2046_touch.h>
 #include <EEPROM.h>
-/*#define TFT_WIDTH  320
-#define TFT_HEIGHT 240*/
+/*#define TFTTFT_WIDTH  320
+#define TFTTFT_HEIGHT 240*/
 #define TOUCH_CS_PIN 7
 #define TOUCH_IRQ 8
+#define Z_THRESHOLD 350
 
 TFT_eSPI tft = TFT_eSPI();
 XPT2046_HR2046_touch ts(TFT_WIDTH, TFT_HEIGHT, TOUCH_CS_PIN, &SPI1);
@@ -17,8 +18,122 @@ public:
 	{
 		TouchDetected = !digitalRead(TOUCH_IRQ);
 	}
-
 	void calibrateTouch(uint16_t *parameters, uint32_t color_fg, uint32_t color_bg, uint8_t size)
+	{
+		int16_t values[] = {0, 0, 0, 0, 0, 0, 0, 0};
+		uint16_t x_tmp, y_tmp;
+
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			tft.fillRect(0, 0, size + 1, size + 1, color_bg);
+			tft.fillRect(0, TFT_HEIGHT - size - 1, size + 1, size + 1, color_bg);
+			tft.fillRect(TFT_WIDTH - size - 1, 0, size + 1, size + 1, color_bg);
+			tft.fillRect(TFT_WIDTH - size - 1, TFT_HEIGHT - size - 1, size + 1, size + 1, color_bg);
+
+			if (i == 5)
+				break; // used to clear the arrows
+
+			switch (i)
+			{
+			case 0: // up left
+				tft.fillRect(0, 0, 0, size, color_fg);
+				tft.fillRect(0, 0, size, 0, color_fg);
+				tft.fillRect(0, 0, size, size, color_fg);
+				break;
+			case 1: // bot left
+				tft.fillRect(0, TFT_HEIGHT - size - 1, 0, TFT_HEIGHT - 1, color_fg);
+				tft.fillRect(0, TFT_HEIGHT - 1, size, TFT_HEIGHT - 1, color_fg);
+				tft.fillRect(size, TFT_HEIGHT - size - 1, 0, TFT_HEIGHT - 1, color_fg);
+				break;
+			case 2: // up right
+				tft.fillRect(TFT_WIDTH - size - 1, 0, TFT_WIDTH - 1, 0, color_fg);
+				tft.fillRect(TFT_WIDTH - size - 1, size, TFT_WIDTH - 1, 0, color_fg);
+				tft.fillRect(TFT_WIDTH - 1, size, TFT_WIDTH - 1, 0, color_fg);
+				break;
+			case 3: // bot right
+				tft.fillRect(TFT_WIDTH - size - 1, TFT_HEIGHT - size - 1, TFT_WIDTH - 1, TFT_HEIGHT - 1, color_fg);
+				tft.fillRect(TFT_WIDTH - 1, TFT_HEIGHT - 1 - size, TFT_WIDTH - 1, TFT_HEIGHT - 1, color_fg);
+				tft.fillRect(TFT_WIDTH - 1 - size, TFT_HEIGHT - 1, TFT_WIDTH - 1, TFT_HEIGHT - 1, color_fg);
+				break;
+			}
+
+			// user has to get the chance to release
+			if (i > 0)
+				delay(1000);
+
+			for (uint8_t j = 0; j < 8; j++)
+			{
+				// Use a lower detect threshold as corners tend to be less sensitive
+				while (!ts.validTouch(&x_tmp, &y_tmp, Z_THRESHOLD / 2))
+					;
+				values[i * 2] += x_tmp;
+				values[i * 2 + 1] += y_tmp;
+			}
+			values[i * 2] /= 8;
+			values[i * 2 + 1] /= 8;
+		}
+
+		// from case 0 to case 1, the y value changed.
+		// If the measured delta of the touch x axis is bigger than the delta of the y axis, the touch and TFT axes are switched.
+		ts.touchCalibration_rotate = false;
+		if (abs(values[0] - values[2]) > abs(values[1] - values[3]))
+		{
+			ts.touchCalibration_rotate = true;
+			ts.touchCalibration_x0 = (values[1] + values[3]) / 2; // calc min x
+			ts.touchCalibration_x1 = (values[5] + values[7]) / 2; // calc max x
+			ts.touchCalibration_y0 = (values[0] + values[4]) / 2; // calc min y
+			ts.touchCalibration_y1 = (values[2] + values[6]) / 2; // calc max y
+		}
+		else
+		{
+			ts.touchCalibration_x0 = (values[0] + values[2]) / 2; // calc min x
+			ts.touchCalibration_x1 = (values[4] + values[6]) / 2; // calc max x
+			ts.touchCalibration_y0 = (values[1] + values[5]) / 2; // calc min y
+			ts.touchCalibration_y1 = (values[3] + values[7]) / 2; // calc max y
+		}
+
+		// in addition, the touch screen axis could be in the opposite direction of the TFT axis
+		ts.touchCalibration_invert_x = false;
+		if (ts.touchCalibration_x0 > ts.touchCalibration_x1)
+		{
+			values[0] = ts.touchCalibration_x0;
+			ts.touchCalibration_x0 = ts.touchCalibration_x1;
+			ts.touchCalibration_x1 = values[0];
+			ts.touchCalibration_invert_x = true;
+		}
+		ts.touchCalibration_invert_y = false;
+		if (ts.touchCalibration_y0 > ts.touchCalibration_y1)
+		{
+			values[0] = ts.touchCalibration_y0;
+			ts.touchCalibration_y0 = ts.touchCalibration_y1;
+			ts.touchCalibration_y1 = values[0];
+			ts.touchCalibration_invert_y = true;
+		}
+
+		// pre calculate
+		ts.touchCalibration_x1 -= ts.touchCalibration_x0;
+		ts.touchCalibration_y1 -= ts.touchCalibration_y0;
+
+		if (ts.touchCalibration_x0 == 0)
+			ts.touchCalibration_x0 = 1;
+		if (ts.touchCalibration_x1 == 0)
+			ts.touchCalibration_x1 = 1;
+		if (ts.touchCalibration_y0 == 0)
+			ts.touchCalibration_y0 = 1;
+		if (ts.touchCalibration_y1 == 0)
+			ts.touchCalibration_y1 = 1;
+
+		// export parameters, if pointer valid
+		if (parameters != NULL)
+		{
+			parameters[0] = ts.touchCalibration_x0;
+			parameters[1] = ts.touchCalibration_x1;
+			parameters[2] = ts.touchCalibration_y0;
+			parameters[3] = ts.touchCalibration_y1;
+			parameters[4] = ts.touchCalibration_rotate | (ts.touchCalibration_invert_x << 1) | (ts.touchCalibration_invert_y << 2);
+		}
+	}
+	/*void calibrateTouch(uint16_t *parameters, uint32_t color_fg, uint32_t color_bg, uint8_t size)
 	{
 		int16_t values[] = {0, 0, 0, 0, 0, 0, 0, 0};
 		uint16_t x_tmp, y_tmp;
@@ -27,7 +142,7 @@ public:
 		tft.fillScreen(TFT_BLACK);
 		tft.setTextColor(TFT_WHITE, TFT_BLACK);
 		tft.setTextDatum(MC_DATUM);
-		tft.drawString("Touch Calibration", TFT_WIDTH / 3, TFT_HEIGHT / 3);
+		tft.drawString("Touch Calibration", TFTTFT_WIDTH / 3, TFTTFT_HEIGHT / 3);
 		for (uint8_t i = 0; i < 4; i++)
 		{
 			if (i > 0)
@@ -36,33 +151,33 @@ public:
 			// init reversed values
 			switch (i)
 			{
-				case 0:
+			case 0:
 				values[i * 2] = 4095;
 				values[i * 2 + 1] = 0;
 				break;
-				case 1:
+			case 1:
 				values[i * 2] = 4095;
 				values[i * 2 + 1] = 4095;
 				break;
-				case 2:
+			case 2:
 				values[i * 2] = 0;
 				values[i * 2 + 1] = 0;
 				break;
-				case 3:
+			case 3:
 				values[i * 2] = 0;
 				values[i * 2 + 1] = 4095;
-					break;
+				break;
 			}
 			bool better;
 			int touches = 0;
-			tft.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+			tft.setCursor(TFTTFT_WIDTH / 2, TFTTFT_HEIGHT / 2);
 			tft.setTextColor(TFT_WHITE, TFT_BLACK);
 			tft.print("      ");
 			while (millis() < endTime)
 			{
 				better = false;
 				this->drawArrowToCorner(i, step, false);
-				tft.setCursor(TFT_WIDTH / 2, TFT_HEIGHT / 2);
+				tft.setCursor(TFTTFT_WIDTH / 2, TFTTFT_HEIGHT / 2);
 				tft.setTextColor(TFT_WHITE, better ? TFT_GREEN : TFT_RED);
 				tft.printf("T:%d", touches);
 				if (ts.validTouch(&x_tmp, &y_tmp))
@@ -85,15 +200,15 @@ public:
 						break;
 					case 1:
 						if (values[i * 2] > x_tmp)
-                        {
-                            values[i * 2] = x_tmp;
-                            better = true;
-                        }
-                        if (values[i * 2 + 1] > y_tmp)
-                        {
-                            values[i * 2 + 1] = y_tmp;
-                            better = true;
-                        }
+						{
+							values[i * 2] = x_tmp;
+							better = true;
+						}
+						if (values[i * 2 + 1] > y_tmp)
+						{
+							values[i * 2 + 1] = y_tmp;
+							better = true;
+						}
 
 						break;
 					case 2:
@@ -107,7 +222,7 @@ public:
 							values[i * 2 + 1] = y_tmp;
 							better = true;
 						}
-						
+
 						break;
 					case 3:
 						if (values[i * 2] < x_tmp)
@@ -190,7 +305,7 @@ public:
 		}
 		tft.fillScreen(TFT_BLACK);
 	}
-	void xpt2046CalibrateSet()
+	*/void xpt2046CalibrateSet()
 	{
 		EEPROM.begin(255);
 
@@ -250,9 +365,9 @@ public:
 		// Corner positions
 		int corners[4][2] = {
 			{1, 1},							 // Top-left - bx dre
-			{1, TFT_HEIGHT - 1},				 // Bottom-left - dl dre
-			{TFT_WIDTH - 1, 1},				 // Top-right - bx esq
-			{TFT_WIDTH - 1, TFT_HEIGHT - 1}, // Bottom-right - dl esq
+			{1, TFTTFT_HEIGHT - 1},			 // Bottom-left - dl dre
+			{TFTTFT_WIDTH - 1, 1},				 // Top-right - bx esq
+			{TFTTFT_WIDTH - 1, TFTTFT_HEIGHT - 1}, // Bottom-right - dl esq
 		};
 		int ex = corners[corner][0];
 		int ey = corners[corner][1];
@@ -284,8 +399,8 @@ public:
 		int ay = sy + (ey - sy) * progress;
 
 		// Draw arrow line
-		tft.drawLine(sx, sy, ax, ay, erase ? TFT_BLACK : TFT_WHITE);
-		
+		tft.tft.fillRect(sx, sy, ax, ay, erase ? TFT_BLACK : TFT_WHITE);
+
 		// Draw simple arrowhead (vertical/horizontal only, no trig)
 		int hx1 = ax, hy1 = ay, hx2 = ax, hy2 = ay;
 		int arrow_size = 15;
@@ -296,7 +411,7 @@ public:
 			hy1 = ay;
 			hx2 = ax;
 			hy2 = ay + arrow_size;
-		break;
+			break;
 		case 1: // Bottom-left - dl dre
 			hx1 = ax + arrow_size;
 			hy1 = ay;
@@ -318,13 +433,13 @@ public:
 		}
 		if (erase)
 		{
-			tft.drawLine(ax, ay, hx1, hy1, TFT_BLACK);
-			tft.drawLine(ax, ay, hx2, hy2, TFT_BLACK);
+			tft.tft.fillRect(ax, ay, hx1, hy1, TFT_BLACK);
+			tft.tft.fillRect(ax, ay, hx2, hy2, TFT_BLACK);
 		}
 		else
 		{
-			tft.drawLine(ax, ay, hx1, hy1, TFT_WHITE);
-			tft.drawLine(ax, ay, hx2, hy2, TFT_WHITE);
+			tft.tft.fillRect(ax, ay, hx1, hy1, TFT_WHITE);
+			tft.tft.fillRect(ax, ay, hx2, hy2, TFT_WHITE);
 		}
 	}
 };
@@ -345,14 +460,16 @@ void setup()
 	tft.fillScreen(TFT_BLACK);
 	tft.setTextColor(TFT_WHITE, TFT_BLACK);
 	tft.setTextDatum(MC_DATUM);
-	tft.drawString("Touch Calibration", TFT_WIDTH / 2, TFT_HEIGHT / 2);
+	tft.drawString("Touch Calibration", TFTTFT_WIDTH / 2, TFTTFT_HEIGHT / 2);
 	// delay(1000);
 	cal->xpt2046CalibrateSet();
 }
 uint16_t xpos, ypos;
 void loop()
 {
-	if (ts.getTouch(&xpos, &ypos))
-		tft.drawCircle(xpos, ypos, 5, TFT_GREEN);
-	delay(50);
+	if (cal->TouchDetected && ts.getTouch(&xpos, &ypos))
+	{
+		tft.fillCircle(xpos, ypos, 3, TFT_GREEN);
+	}
+	// delay(25);
 }
