@@ -28,10 +28,10 @@ public:
 		// Fill ts.src[4] with screen bordered values
 		ts.src[0].x = borderX;					// top-left x
 		ts.src[0].y = borderY;					// top-left y
-		ts.src[1].x = borderX;					// bottom-left x
-		ts.src[1].y = TFT_HEIGHT - borderY - 1; // bottom-left y
-		ts.src[2].x = TFT_WIDTH - borderX - 1;	// top-right x
-		ts.src[2].y = borderY;					// top-right y
+		ts.src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
+		ts.src[1].y = borderY;					// top-right y
+		ts.src[2].x = borderX;					// bottom-left x
+		ts.src[2].y = TFT_HEIGHT - borderY - 1; // bottom-left y
 		ts.src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
 		ts.src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
 		// Fill ts.dst with zeroes
@@ -44,25 +44,25 @@ public:
 		for (uint8_t i = 0; i < 4; i++)
 		{
 			// clear the 4 calibration boxes (background)
-			tft.fillRect(borderX, borderY, size + 1, size + 1, color_bg);												 // top-left
-			tft.fillRect(borderX, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg);						 // bottom-left
-			tft.fillRect(TFT_WIDTH - borderX - size - 1, borderY, size + 1, size + 1, color_bg);						 // top-right
-			tft.fillRect(TFT_WIDTH - borderX - size - 1, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg); // bottom-right
+			tft.fillCircle(borderX, borderY, size+2, color_bg);												 // top-left
+			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);						 // top-right
+			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);						 // bottom-left
+			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg); // bottom-right
 
 			// draw target in the corner depending on i
 			switch (i)
 			{
-			case 0: // up left
-				tft.fillCircle(borderX, borderY, size, color_fg);
-				break;
-			case 1: // bot left
+				case 0: // up left
 				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
 				break;
-			case 2: // up right
-				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
-				break;
-			case 3: // bot right
+				case 1: // bot left
 				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
+				break;
+				case 2: // up right
+				tft.fillCircle(borderX, borderY, size, color_fg);
+				break;
+				case 3: // bot right
+				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
 				break;
 			}
 
@@ -150,7 +150,7 @@ public:
 	{
 		//-------------------eeprom integrity check
 
-		if (!retrieveCalibrationPoints())
+		if (ts.isTouching() || (!retrieveCalibrationPoints()))
 		{
 			tft.fillScreen(TFT_YELLOW);
 			delay(1000);
