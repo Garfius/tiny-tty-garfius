@@ -184,12 +184,13 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	{
 		return false; // Calibration error or invalid mapping
 	}
+
 	x_tmp = (uint16_t)mtpp.x;
 	y_tmp = (uint16_t)mtpp.y;
 
 	if (x_tmp >= _width || y_tmp >= _height)
 		return false;
-
+	this->rotateCoordinates(x_tmp,y_tmp,_rotation);
 	_pressX = x_tmp;
 	_pressY = y_tmp;
 	*x = _pressX;
@@ -255,16 +256,6 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 		v = v_left;
 	}
 
-	// Clamp u and v to valid range
-	/*	if (u < 0.0)
-			u = 0.0;
-		if (u > 1.0)
-			u = 1.0;
-		if (v < 0.0)
-			v = 0.0;
-		if (v > 1.0)
-			v = 1.0;
-	*/
 	// Now map from normalized (u,v) to screen coordinates using src points
 	// src[0] = top-left screen, src[1] = top-right screen
 	// src[2] = bottom-left screen, src[3] = bottom-right screen
@@ -301,7 +292,7 @@ void XPT2046_HR2046_touch::rotateCoordinates(uint16_t &x, uint16_t &y, uint8_t r
 		// x and y remain unchanged
 		break;
 
-	case 1: // 90 degrees clockwise
+	case 3: // 90 degrees clockwise
 		// (x,y) -> (height-1-y, x)
 		temp_x = _height - 1 - y;
 		temp_y = x;
@@ -315,7 +306,7 @@ void XPT2046_HR2046_touch::rotateCoordinates(uint16_t &x, uint16_t &y, uint8_t r
 		y = _height - 1 - y;
 		break;
 
-	case 3: // 270 degrees clockwise (or 90 degrees counter-clockwise)
+	case 1: // 270 degrees clockwise (or 90 degrees counter-clockwise)
 		// (x,y) -> (y, width-1-x)
 		temp_x = y;
 		temp_y = _width - 1 - x;

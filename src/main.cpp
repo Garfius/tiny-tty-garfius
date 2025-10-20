@@ -6,7 +6,7 @@
 #define TFTTFT_HEIGHT 240*/
 #define TOUCH_CS_PIN 7
 #define TOUCH_IRQ 8
-#define Z_THRESHOLD 350
+#define BORDER_DEAD_ZONE 30
 
 TFT_eSPI tft = TFT_eSPI();
 XPT2046_HR2046_touch ts(TFT_WIDTH, TFT_HEIGHT, TOUCH_CS_PIN, &SPI1);
@@ -175,7 +175,11 @@ void touchDetectedISR()
 void setup()
 {
 	tft.init();
-	// tft.setRotation(2);
+	/*
+	// TESTING
+	tft.setRotation(1);
+	ts._rotation = tft.getRotation();
+	*/
 	ts.begin();
 	pinMode(TOUCH_IRQ, INPUT);
 	attachInterrupt(digitalPinToInterrupt(TOUCH_IRQ), touchDetectedISR, CHANGE);
@@ -183,11 +187,8 @@ void setup()
 	tft.setTextColor(TFT_WHITE, TFT_BLACK);
 	tft.setTextDatum(MC_DATUM);
 	tft.drawString("Touch Calibration", TFT_WIDTH / 2, TFT_HEIGHT / 2);
-	// delay(1000);
-
 	// Call calibration setup. You can pass border offsets (horizontal, vertical) in pixels:
-	cal->xpt2046CalibrateSet(30, 30);
-	// cal->xpt2046CalibrateSet();
+	cal->xpt2046CalibrateSet(BORDER_DEAD_ZONE, BORDER_DEAD_ZONE);
 }
 uint16_t xpos, ypos;
 void loop()
