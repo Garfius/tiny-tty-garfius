@@ -256,7 +256,7 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 	}
 
 	// Clamp u and v to valid range
-	if (u < 0.0)
+/*	if (u < 0.0)
 		u = 0.0;
 	if (u > 1.0)
 		u = 1.0;
@@ -264,7 +264,7 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 		v = 0.0;
 	if (v > 1.0)
 		v = 1.0;
-
+*/
 	// Now map from normalized (u,v) to screen coordinates using src points
 	// src[0] = top-left screen, src[1] = top-right screen
 	// src[2] = bottom-left screen, src[3] = bottom-right screen
