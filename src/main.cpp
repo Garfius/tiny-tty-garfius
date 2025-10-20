@@ -21,34 +21,48 @@ public:
 
 	// New parameters borderX and borderY: horizontal and vertical distance from screen borders
 	// during calibration. Defaults kept to 0 for backward compatibility.
-	void calibrateTouch(uint16_t *parameters, uint32_t color_fg, uint32_t color_bg, uint8_t size, uint16_t borderX = 0, uint16_t borderY = 0)
+	void calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX = 0, uint16_t borderY = 0)
 	{
-		int16_t values[] = {0, 0, 0, 0, 0, 0, 0, 0};
+		uint8_t size = 3;
 		uint16_t x_tmp, y_tmp;
-
+		// Fill ts.src[4] with screen bordered values
+		ts.src[0].x = borderX;					// top-left x
+		ts.src[0].y = borderY;					// top-left y
+		ts.src[1].x = borderX;					// bottom-left x
+		ts.src[1].y = TFT_HEIGHT - borderY - 1; // bottom-left y
+		ts.src[2].x = TFT_WIDTH - borderX - 1;	// top-right x
+		ts.src[2].y = borderY;					// top-right y
+		ts.src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
+		ts.src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
+		// Fill ts.dst with zeroes
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			ts.dst[i].x = 0.0;
+			ts.dst[i].y = 0.0;
+		}
 		// corner positions adjusted by borderX/borderY and size
 		for (uint8_t i = 0; i < 4; i++)
 		{
 			// clear the 4 calibration boxes (background)
-			tft.fillRect(borderX, borderY, size + 1, size + 1, color_bg);														// top-left
-			tft.fillRect(borderX, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg);								// bottom-left
-			tft.fillRect(TFT_WIDTH - borderX - size - 1, borderY, size + 1, size + 1, color_bg);								// top-right
-			tft.fillRect(TFT_WIDTH - borderX - size - 1, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg);		// bottom-right
+			tft.fillRect(borderX, borderY, size + 1, size + 1, color_bg);												 // top-left
+			tft.fillRect(borderX, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg);						 // bottom-left
+			tft.fillRect(TFT_WIDTH - borderX - size - 1, borderY, size + 1, size + 1, color_bg);						 // top-right
+			tft.fillRect(TFT_WIDTH - borderX - size - 1, TFT_HEIGHT - borderY - size - 1, size + 1, size + 1, color_bg); // bottom-right
 
 			// draw target in the corner depending on i
 			switch (i)
 			{
 			case 0: // up left
-				tft.fillRect(borderX, borderY, size, size, color_fg);
+				tft.fillCircle(borderX, borderY, size, color_fg);
 				break;
 			case 1: // bot left
-				tft.fillRect(borderX, TFT_HEIGHT - borderY - size - 1, size, size, color_fg);
+				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
 				break;
 			case 2: // up right
-				tft.fillRect(TFT_WIDTH - borderX - size - 1, borderY, size, size, color_fg);
+				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
 				break;
 			case 3: // bot right
-				tft.fillRect(TFT_WIDTH - borderX - size - 1, TFT_HEIGHT - borderY - size - 1, size, size, color_fg);
+				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
 				break;
 			}
 
@@ -60,228 +74,95 @@ public:
 			for (uint8_t j = 0; j < 8; j++)
 			{
 				// Use a lower detect threshold as corners tend to be less sensitive
-				while (!ts.validTouch(&x_tmp, &y_tmp, Z_THRESHOLD / 2))
+				while (!ts.validTouch(&x_tmp, &y_tmp)) //, Z_THRESHOLD / 2
 					;
-				values[i * 2] += x_tmp;
-				values[i * 2 + 1] += y_tmp;
+				ts.dst[i].x += x_tmp;
+				ts.dst[i].y += y_tmp;
 			}
-			values[i * 2] /= 8;
-			values[i * 2 + 1] /= 8;
-		}
-
-		// determine if axes are swapped
-		ts.touchCalibration_rotate = false;
-		if (abs(values[0] - values[2]) > abs(values[1] - values[3]))
-		{
-			ts.touchCalibration_rotate = true;
-			ts.touchCalibration_x0 = (values[1] + values[3]) / 2; // calc min x (raw)
-			ts.touchCalibration_x1 = (values[5] + values[7]) / 2; // calc max x (raw)
-			ts.touchCalibration_y0 = (values[0] + values[4]) / 2; // calc min y (raw)
-			ts.touchCalibration_y1 = (values[2] + values[6]) / 2; // calc max y (raw)
-		}
-		else
-		{
-			ts.touchCalibration_x0 = (values[0] + values[2]) / 2; // calc min x (raw)
-			ts.touchCalibration_x1 = (values[4] + values[6]) / 2; // calc max x (raw)
-			ts.touchCalibration_y0 = (values[1] + values[5]) / 2; // calc min y (raw)
-			ts.touchCalibration_y1 = (values[3] + values[7]) / 2; // calc max y (raw)
-		}
-
-		// in addition, the touch screen axis could be in the opposite direction of the TFT axis
-		ts.touchCalibration_invert_x = false;
-		if (ts.touchCalibration_x0 > ts.touchCalibration_x1)
-		{
-			values[0] = ts.touchCalibration_x0;
-			ts.touchCalibration_x0 = ts.touchCalibration_x1;
-			ts.touchCalibration_x1 = values[0];
-			ts.touchCalibration_invert_x = true;
-		}
-		ts.touchCalibration_invert_y = false;
-		if (ts.touchCalibration_y0 > ts.touchCalibration_y1)
-		{
-			values[0] = ts.touchCalibration_y0;
-			ts.touchCalibration_y0 = ts.touchCalibration_y1;
-			ts.touchCalibration_y1 = values[0];
-			ts.touchCalibration_invert_y = true;
-		}
-
-		// pre calculate ranges (store ranges like original code)
-		ts.touchCalibration_x1 -= ts.touchCalibration_x0;
-		ts.touchCalibration_y1 -= ts.touchCalibration_y0;
-
-		if (ts.touchCalibration_x0 == 0)
-			ts.touchCalibration_x0 = 1;
-		if (ts.touchCalibration_x1 == 0)
-			ts.touchCalibration_x1 = 1;
-		if (ts.touchCalibration_y0 == 0)
-			ts.touchCalibration_y0 = 1;
-		if (ts.touchCalibration_y1 == 0)
-			ts.touchCalibration_y1 = 1;
-
-		// export parameters, if pointer valid
-		if (parameters != NULL)
-		{
-			parameters[0] = ts.touchCalibration_x0;
-			parameters[1] = ts.touchCalibration_x1;
-			parameters[2] = ts.touchCalibration_y0;
-			parameters[3] = ts.touchCalibration_y1;
-			parameters[4] = ts.touchCalibration_rotate | (ts.touchCalibration_invert_x << 1) | (ts.touchCalibration_invert_y << 2);
-			// store display offsets used for calibration (so conversion can map raw -> full screen while
-			// calibration was performed inset from borders).
-
-			parameters[5] = borderX;
-			parameters[6] = borderY;
-			ts.displayOffsetX = borderX;
-			ts.displayOffsetY = borderY;
+			ts.dst[i].x = ts.dst[i].x / 8;
+			ts.dst[i].y = ts.dst[i].y / 8;
 		}
 	}
 
-	/* legacy/unused arrow drawing support adjusted to use TFT_WIDTH/TFT_HEIGHT */
-	int start_dist = 50;
-	int totalSteps = 30;
-	void drawArrowToCorner(int corner, int step, bool erase = false)
+	// Store ts.src and ts.dst arrays to EEPROM
+	void storeCalibrationPoints()
 	{
-		// Corner positions (using full screen extents)
-		int corners[4][2] = {
-			{1, 1},						 // Top-left
-			{1, TFT_HEIGHT - 1},		 // Bottom-left
-			{TFT_WIDTH - 1, 1},			 // Top-right
-			{TFT_WIDTH - 1, TFT_HEIGHT - 1}, // Bottom-right
-		};
-		int ex = corners[corner][0];
-		int ey = corners[corner][1];
+		EEPROM.begin(255);
+		int eePos = 16; // Start after the main calibration data (14 bytes + 2 integrity bytes)
 
-		// Calculate start point based on which corner
-		int sx = ex, sy = ey;
-		switch (corner)
+		// Store ts.src[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
+		uint8_t *srcBytePtr = (uint8_t *)ts.src;
+		for (int i = 0; i < 32; i++)
 		{
-		case 0:
-			sx += start_dist;
-			sy += start_dist;
-			break; // Top-left
-		case 1:
-			sx += start_dist;
-			sy -= start_dist;
-			break; // Bottom-left
-		case 2:
-			sx -= start_dist;
-			sy += start_dist;
-			break; // Top-right
-		case 3:
-			sx -= start_dist;
-			sy -= start_dist;
-			break; // Bottom-right
+			EEPROM.write(eePos + i, srcBytePtr[i]);
+		}
+		eePos += 32;
+
+		// Store ts.dst[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
+		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
+		for (int i = 0; i < 32; i++)
+		{
+			EEPROM.write(eePos + i, dstBytePtr[i]);
 		}
 
-		float progress = (float)step / totalSteps;
-		int ax = sx + (ex - sx) * progress;
-		int ay = sy + (ey - sy) * progress;
+		// Write integrity marker for calibration points
+		EEPROM.write(80, 0xAA); // Marker at position 80
+		EEPROM.write(81, 0x55); // Complement marker
 
-		// Draw arrow line (simple rectangle as line)
-		if (erase)
-			tft.fillRect(min(sx, ax), min(sy, ay), abs(ax - sx) + 1, abs(ay - sy) + 1, TFT_BLACK);
-		else
-			tft.fillRect(min(sx, ax), min(sy, ay), abs(ax - sx) + 1, abs(ay - sy) + 1, TFT_WHITE);
-
-		// Simple arrowhead
-		int hx1 = ax, hy1 = ay, hx2 = ax, hy2 = ay;
-		int arrow_size = 15;
-		switch (corner)
-		{
-		case 0: // Top-left
-			hx1 = ax + arrow_size;
-			hy1 = ay;
-			hx2 = ax;
-			hy2 = ay + arrow_size;
-			break;
-		case 1: // Bottom-left
-			hx1 = ax + arrow_size;
-			hy1 = ay;
-			hx2 = ax;
-			hy2 = ay - arrow_size;
-			break;
-		case 2: // Top-right
-			hx1 = ax - arrow_size;
-			hy1 = ay;
-			hx2 = ax;
-			hy2 = ay + arrow_size;
-			break;
-		case 3: // Bottom-right
-			hx1 = ax - arrow_size;
-			hy1 = ay;
-			hx2 = ax;
-			hy2 = ay - arrow_size;
-			break;
-		}
-		if (erase)
-		{
-			tft.fillRect(min(ax, hx1), min(ay, hy1), abs(hx1 - ax) + 1, abs(hy1 - ay) + 1, TFT_BLACK);
-			tft.fillRect(min(ax, hx2), min(ay, hy2), abs(hx2 - ax) + 1, abs(hy2 - ay) + 1, TFT_BLACK);
-		}
-		else
-		{
-			tft.fillRect(min(ax, hx1), min(ay, hy1), abs(hx1 - ax) + 1, abs(hy1 - ay) + 1, TFT_WHITE);
-			tft.fillRect(min(ax, hx2), min(ay, hy2), abs(hx2 - ax) + 1, abs(hy2 - ay) + 1, TFT_WHITE);
-		}
+		EEPROM.commit();
+		EEPROM.end();
 	}
-/* EEPROM-backed calibration handling
-   This function was updated to store and load two extra uint16_t values:
-   parameters[5] = borderX, parameters[6] = borderY
-   So total stored bytes = 7 * 2 = 14 bytes (+ 2 integrity bytes at positions 0 and 1)
-*/
-void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY)
-{
-	EEPROM.begin(255);
 
-	uint16_t calibrationData[7]; // 7 uint16_t -> 14 bytes stored (first 5 are as before, last two are offsets)
-	uint8_t *calibrationDataBytePoint = (uint8_t *)calibrationData;
-	uint8_t calDataOK = 0;
-	uint8_t calDataTst = 0;
-	//-------------------eeprom integrity check
-	calDataOK = EEPROM.read(0);
-	calDataTst = ~EEPROM.read(1);
-	calDataOK = calDataOK == calDataTst;
-	int eePos = 2;
-	calDataTst = ts.isTouching();
-	if (calDataOK && (!calDataTst))
+	// Retrieve ts.src and ts.dst arrays from EEPROM
+	bool retrieveCalibrationPoints()
 	{
-		// calibration data valid & NO TSOLICITED
-		for (int i = 0; i < 14; i++)
+		EEPROM.begin(255);
+
+		// Check integrity markers
+		if (EEPROM.read(80) != 0xAA || EEPROM.read(81) != 0x55)
 		{
-			calDataTst = EEPROM.read(eePos + i);
-			calibrationDataBytePoint[i] = calDataTst;
+			EEPROM.end();
+			return false; // No valid calibration points stored
 		}
-		ts.setCalibrationData(calibrationData);
+
+		int eePos = 16; // Start after the main calibration data
+
+		// Retrieve ts.src[4] points
+		uint8_t *srcBytePtr = (uint8_t *)ts.src;
+		for (int i = 0; i < 32; i++)
+		{
+			srcBytePtr[i] = EEPROM.read(eePos + i);
+		}
+		eePos += 32;
+
+		// Retrieve ts.dst[4] points
+		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
+		for (int i = 0; i < 32; i++)
+		{
+			dstBytePtr[i] = EEPROM.read(eePos + i);
+		}
+
+		EEPROM.end();
+		return true; // Successfully retrieved calibration points
 	}
-	else
+
+	void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY)
 	{
-		if (calDataTst)
+		//-------------------eeprom integrity check
+
+		if (!retrieveCalibrationPoints())
 		{
 			tft.fillScreen(TFT_YELLOW);
 			delay(1000);
 			tft.fillScreen(TFT_BLACK);
 			// data not valid. recalibrate. Pass borderX/borderY into calibrateTouch
-			calibrateTouch(calibrationData, TFT_WHITE, TFT_RED, 15, borderX, borderY);
+			calibrateTouch(TFT_WHITE, TFT_RED, borderX, borderY);
 			// store data
-			while (calDataOK == EEPROM.read(0))
-				calDataOK = (uint8_t)random(0, 255); // firma
-			EEPROM.write(0, calDataOK);
-			calDataTst = ~calDataOK;
-			EEPROM.write(1, calDataTst);
-			eePos = 2;
-			for (int i = 0; i < 14; i++)
-			{
-				calDataTst = calibrationDataBytePoint[i];
-				EEPROM.write(eePos + i, calDataTst);
-			}
-			EEPROM.commit();
-			EEPROM.end();
+			storeCalibrationPoints();
 			tft.fillScreen(TFT_BLACK);
 		}
 	}
-}
 };
-
 
 static calibrator *cal = new calibrator();
 
@@ -294,7 +175,7 @@ void setup()
 {
 	tft.init();
 	// tft.setRotation(2);
-	ts.begin(tft.getRotation());
+	ts.begin();
 	pinMode(TOUCH_IRQ, INPUT);
 	attachInterrupt(digitalPinToInterrupt(TOUCH_IRQ), touchDetectedISR, CHANGE);
 	tft.fillScreen(TFT_BLACK);
@@ -305,7 +186,7 @@ void setup()
 
 	// Call calibration setup. You can pass border offsets (horizontal, vertical) in pixels:
 	cal->xpt2046CalibrateSet(30, 30);
-	//cal->xpt2046CalibrateSet();
+	// cal->xpt2046CalibrateSet();
 }
 uint16_t xpos, ypos;
 void loop()

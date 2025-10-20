@@ -6,6 +6,11 @@
 
 #define SPI_TOUCH_FREQUENCY 2500000
 #define TOUCH_THRESHOLD 600
+struct Point_XPT2046_HR2046_touch
+{
+	float x;
+	float y;
+};
 
 class XPT2046_HR2046_touch
 {
@@ -34,16 +39,17 @@ public:
 	// parameters[4] = flags (rotate/invert bits)
 	// parameters[5] = displayOffsetX (pixels inset from left/right during calibration)
 	// parameters[6] = displayOffsetY (pixels inset from top/bottom during calibration)
-	//void setTouch(uint16_t *data);
+	// void setTouch(uint16_t *data);
 
-	void begin(uint8_t touchCalibration_rotate = 1, uint8_t touchCalibration_invert_x = 2, uint8_t touchCalibration_invert_y = 0);
-	uint16_t touchCalibration_x0 = 300, touchCalibration_x1 = 3600, touchCalibration_y0 = 300, touchCalibration_y1 = 3600;
+	void begin();
 	uint8_t touchCalibration_rotate, touchCalibration_invert_x, touchCalibration_invert_y;
 	uint8_t validTouch(uint16_t *x, uint16_t *y, uint16_t threshold = TOUCH_THRESHOLD);
 	void setCalibrationData(uint16_t *parameters);
 	bool isTouching(uint16_t threshold = TOUCH_THRESHOLD);
-	uint16_t displayOffsetX = 0;
-	uint16_t displayOffsetY = 0;
+	// Punts del pla no lineal (source)
+	Point_XPT2046_HR2046_touch src[4];
+	Point_XPT2046_HR2046_touch dst[4];
+	Point_XPT2046_HR2046_touch mapPoint(float x, float y);
 
 private:
 	// Legacy support only - deprecated TODO: delete

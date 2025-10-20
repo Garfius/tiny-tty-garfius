@@ -179,8 +179,9 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	}
 
 	_pressTime = millis() + 50;
-
-	convertRawXY(&x_tmp, &y_tmp);
+	Point_XPT2046_HR2046_touch mtpp = this->mapPoint(x_tmp, y_tmp);
+	x_tmp = (uint16_t)mtpp.x;
+	y_tmp = (uint16_t)mtpp.y;
 
 	if (x_tmp >= _width || y_tmp >= _height)
 		return false;
@@ -191,80 +192,29 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	*y = _pressY;
 	return valid;
 }
-
-/***************************************************************************************
-** Function name:           convertRawXY
-** Description:             convert raw touch x,y values to screen coordinates
-***************************************************************************************/
-void XPT2046_HR2046_touch::convertRawXY(uint16_t *x, uint16_t *y)
+void XPT2046_HR2046_touch::begin()
 {
-	uint16_t x_tmp = *x, y_tmp = *y, xx, yy;
-
-	// Use stored display offsets when converting, so calibration can be done inset from borders.
-	// touchCalibration_x0/y0 are raw minima. touchCalibration_x1/y1 are raw ranges (max - min).
-	// displayOffsetX/Y represent distance from borders (in pixels) where calibration targets were placed.
-
-	if (!touchCalibration_rotate)
-	{
-		// Map raw range to screen range reduced by offsets, then add offset
-		uint16_t effectiveWidth = (_width > (2 * displayOffsetX)) ? (_width - 2 * displayOffsetX) : _width;
-		uint16_t effectiveHeight = (_height > (2 * displayOffsetY)) ? (_height - 2 * displayOffsetY) : _height;
-
-		xx = (uint32_t)(x_tmp - touchCalibration_x0) * effectiveWidth / touchCalibration_x1 + displayOffsetX;
-		yy = (uint32_t)(y_tmp - touchCalibration_y0) * effectiveHeight / touchCalibration_y1 + displayOffsetY;
-
-		if (touchCalibration_invert_x)
-			xx = _width - xx;
-		if (touchCalibration_invert_y)
-			yy = _height - yy;
-	}
-	else
-	{
-		uint16_t effectiveWidth = (_width > (2 * displayOffsetX)) ? (_width - 2 * displayOffsetX) : _width;
-		uint16_t effectiveHeight = (_height > (2 * displayOffsetY)) ? (_height - 2 * displayOffsetY) : _height;
-
-		xx = (uint32_t)(y_tmp - touchCalibration_x0) * effectiveWidth / touchCalibration_x1 + displayOffsetX;
-		yy = (uint32_t)(x_tmp - touchCalibration_y0) * effectiveHeight / touchCalibration_y1 + displayOffsetY;
-
-		if (touchCalibration_invert_x)
-			xx = _width - xx;
-		if (touchCalibration_invert_y)
-			yy = _height - yy;
-	}
-	*x = xx;
-	*y = yy;
-}
-
-void XPT2046_HR2046_touch::begin(uint8_t touchCalibration_rotate, uint8_t touchCalibration_invert_x, uint8_t touchCalibration_invert_y)
-{
-	this->touchCalibration_rotate = touchCalibration_rotate;
-	this->touchCalibration_invert_x = touchCalibration_invert_x;
-	this->touchCalibration_invert_y = touchCalibration_invert_y;
 	_spi->begin();
 	pinMode(_csPin, OUTPUT);
 	digitalWrite(_csPin, HIGH);
 }
-void XPT2046_HR2046_touch::setCalibrationData(uint16_t *parameters)
+Point_XPT2046_HR2046_touch XPT2046_HR2046_touch::mapPoint(float x, float y)
 {
-	touchCalibration_x0 = parameters[0];
-	touchCalibration_x1 = parameters[1];
-	touchCalibration_y0 = parameters[2];
-	touchCalibration_y1 = parameters[3];
+	float u = x / 100.0;
+	float v = y / 100.0;
 
-	// Read display offsets if caller provided them (parameters[5], parameters[6])
-	displayOffsetX = parameters[5];
-	displayOffsetY = parameters[6];
+	Point_XPT2046_HR2046_touch top, bottom, result;
 
-	if (touchCalibration_x0 == 0)
-		touchCalibration_x0 = 1;
-	if (touchCalibration_x1 == 0)
-		touchCalibration_x1 = 1;
-	if (touchCalibration_y0 == 0)
-		touchCalibration_y0 = 1;
-	if (touchCalibration_y1 == 0)
-		touchCalibration_y1 = 1;
+	// Interpolació horitzontal
+	top.x = (1 - u) * dst[0].x + u * dst[1].x;
+	top.y = (1 - u) * dst[0].y + u * dst[1].y;
 
-	touchCalibration_rotate = parameters[4] & 0x01;
-	touchCalibration_invert_x = parameters[4] & 0x02;
-	touchCalibration_invert_y = parameters[4] & 0x04;
+	bottom.x = (1 - u) * dst[2].x + u * dst[3].x;
+	bottom.y = (1 - u) * dst[2].y + u * dst[3].y;
+
+	// Interpolació vertical
+	result.x = (1 - v) * top.x + v * bottom.x;
+	result.y = (1 - v) * top.y + v * bottom.y;
+
+	return result;
 }
