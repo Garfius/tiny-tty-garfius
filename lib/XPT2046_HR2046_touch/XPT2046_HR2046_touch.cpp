@@ -179,7 +179,11 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	}
 
 	_pressTime = millis() + 50;
-	Point_XPT2046_HR2046_touch mtpp = this->mapPoint(x_tmp, y_tmp);
+	Point_XPT2046_HR2046_touch mtpp;
+	if (!this->mapPoint(x_tmp, y_tmp, mtpp))
+	{
+		return false; // Calibration error or invalid mapping
+	}
 	x_tmp = (uint16_t)mtpp.x;
 	y_tmp = (uint16_t)mtpp.y;
 
@@ -198,23 +202,54 @@ void XPT2046_HR2046_touch::begin()
 	pinMode(_csPin, OUTPUT);
 	digitalWrite(_csPin, HIGH);
 }
-Point_XPT2046_HR2046_touch XPT2046_HR2046_touch::mapPoint(float x, float y)
+// map the point (x,y) from the linear source plane to the non-linear destination plane
+// Returns false if calibration points are invalid or incorrectly ordered
+bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch &result)
 {
-	float u = x / 100.0;
-	float v = y / 100.0;
+	// Validate calibration point ordering
+	// Expected order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
+	// Check if points form a proper quadrilateral
+	if (src[0].x >= src[1].x || src[0].y >= src[2].y || // top-left constraints
+		src[1].x <= src[0].x || src[1].y >= src[3].y || // top-right constraints
+		src[2].x >= src[3].x || src[2].y <= src[0].y || // bottom-left constraints
+		src[3].x <= src[2].x || src[3].y <= src[1].y)	// bottom-right constraints
+	{
+		return false; // Invalid calibration point ordering
+	}
 
-	Point_XPT2046_HR2046_touch top, bottom, result;
+	// Validate dst points are not all zero (uncalibrated)
+	if (dst[0].x == 0.0 && dst[0].y == 0.0 && dst[1].x == 0.0 && dst[1].y == 0.0 &&
+		dst[2].x == 0.0 && dst[2].y == 0.0 && dst[3].x == 0.0 && dst[3].y == 0.0)
+	{
+		return false; // No calibration data
+	}
 
-	// Interpolació horitzontal
+	// Normalize coordinates to the src rectangle
+	float width = src[1].x - src[0].x;	// top-right x - top-left x
+	float height = src[2].y - src[0].y; // bottom-left y - top-left y
+
+	if (width <= 0 || height <= 0)
+	{
+		return false; // Invalid source rectangle
+	}
+
+	float u = (x - src[0].x) / width;  // horizontal ratio (0-1)
+	float v = (y - src[0].y) / height; // vertical ratio (0-1)
+
+	Point_XPT2046_HR2046_touch top, bottom;
+
+	// Bilinear interpolation
+	// Horizontal interpolation for top edge (between points 0 and 1)
 	top.x = (1 - u) * dst[0].x + u * dst[1].x;
 	top.y = (1 - u) * dst[0].y + u * dst[1].y;
 
+	// Horizontal interpolation for bottom edge (between points 2 and 3)
 	bottom.x = (1 - u) * dst[2].x + u * dst[3].x;
 	bottom.y = (1 - u) * dst[2].y + u * dst[3].y;
 
-	// Interpolació vertical
+	// Vertical interpolation between top and bottom
 	result.x = (1 - v) * top.x + v * bottom.x;
 	result.y = (1 - v) * top.y + v * bottom.y;
 
-	return result;
+	return true;
 }

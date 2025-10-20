@@ -49,7 +49,7 @@ public:
 	// Punts del pla no lineal (source)
 	Point_XPT2046_HR2046_touch src[4];
 	Point_XPT2046_HR2046_touch dst[4];
-	Point_XPT2046_HR2046_touch mapPoint(float x, float y);
+	bool mapPoint(float x, float y, Point_XPT2046_HR2046_touch &result);
 
 private:
 	// Legacy support only - deprecated TODO: delete

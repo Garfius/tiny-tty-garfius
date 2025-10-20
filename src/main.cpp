@@ -25,7 +25,8 @@ public:
 	{
 		uint8_t size = 3;
 		uint16_t x_tmp, y_tmp;
-		// Fill ts.src[4] with screen bordered values
+		// Fill ts.src[4] with screen bordered values, corresponds to the linear plane of the display
+		// Order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
 		ts.src[0].x = borderX;					// top-left x
 		ts.src[0].y = borderY;					// top-left y
 		ts.src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
@@ -43,26 +44,26 @@ public:
 		// corner positions adjusted by borderX/borderY and size
 		for (uint8_t i = 0; i < 4; i++)
 		{
-			// clear the 4 calibration boxes (background)
-			tft.fillCircle(borderX, borderY, size+2, color_bg);												 // top-left
-			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);						 // top-right
-			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);						 // bottom-left
-			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg); // bottom-right
+			// draw clear the 4 calibration boxes (background)
+			tft.fillCircle(borderX, borderY, size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);
+			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg);
 
 			// draw target in the corner depending on i
 			switch (i)
 			{
-				case 0: // up left
-				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
-				break;
-				case 1: // bot left
-				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
-				break;
-				case 2: // up right
+			case 0: // top-left
 				tft.fillCircle(borderX, borderY, size, color_fg);
 				break;
-				case 3: // bot right
+			case 1: // top-right
 				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
+				break;
+			case 2: // bottom-left
+				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
+				break;
+			case 3: // bottom-right
+				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
 				break;
 			}
 
@@ -73,8 +74,8 @@ public:
 			// sample 8 times and average for stability
 			for (uint8_t j = 0; j < 8; j++)
 			{
-				// Use a lower detect threshold as corners tend to be less sensitive
-				while (!ts.validTouch(&x_tmp, &y_tmp)) //, Z_THRESHOLD / 2
+				// Read touch coordinates
+				while (!ts.validTouch(&x_tmp, &y_tmp))
 					;
 				ts.dst[i].x += x_tmp;
 				ts.dst[i].y += y_tmp;
