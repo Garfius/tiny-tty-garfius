@@ -43,19 +43,23 @@ unsigned long chooseBauds();
 void giveErrorVisibility(int slow, int fast, bool init=false);
 
 #ifdef touchNoEspi
-	void xpt2046CalibrateGet(uint16_t *parameters, uint32_t color_fg=TFT_WHITE, uint32_t color_bg=TFT_RED, uint8_t size=15);
-	void convertRawXY(uint16_t *x, uint16_t *y);//convert raw touch x,y values to screen coordinates 
-	bool getTouchRaw(uint16_t *x, uint16_t *y);
-	bool getTouchDisplay(uint16_t *x, uint16_t *y);
-	void setCalibrationData(uint16_t *parameters);
-	void xpt2046CalibrateSet();
-	bool isTouching();
+	class calibrator{
+		size_t _eepromSizeInit;
+		int _eepromPos;
+		bool retrieveCalibrationPoints();
+		void storeCalibrationPoints();
+		void calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX = 0, uint16_t borderY = 0);
+	public:
+		calibrator(size_t eepromSizeInit= 255,int eepromPos = 16);
+		void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY);
+
+	};
 #endif
 
 extern CharBuffer buffer;
 extern CharBuffer bufferoUT;
 #ifdef touchNoEspi
-    extern XPT2046_Touchscreen ts;
+    extern XPT2046_HR2046_touch ts;
 #endif
 extern TFT_eSPI tft;
 extern TFT_eSprite spr;

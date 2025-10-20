@@ -1,6 +1,6 @@
 #include <TFT_eSPI.h>
 #include <Arduino.h>
-#include <XPT2046_Touchscreen.h>
+#include <XPT2046_HR2046_touch.h>
 #include <TFT_eSPI.h>// Hardware-specific library, configure at User_Setup.h
 
 /**
@@ -25,7 +25,7 @@
 //
 
 #define TOUCH_SENSIVITY 400
-//#define touchNoEspi// <------setCalibrationData
+#define touchNoEspi// <------setCalibrationData
 
 // varis
 #define INPUT_BUFFER_SIZE 400

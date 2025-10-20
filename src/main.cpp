@@ -1,201 +1,199 @@
-#include <TFT_eSPI.h>
-#include <SPI.h>
-#include <XPT2046_HR2046_touch.h>
+#include "Free_Fonts.h" // Include the header file attached to this sketch from TFT_eSPI
+#include <Arduino.h>
 #include <EEPROM.h>
-/*#define TFTTFT_WIDTH  320
-#define TFTTFT_HEIGHT 240*/
-#define TOUCH_CS_PIN 7
-#define TOUCH_IRQ 8
-#define BORDER_DEAD_ZONE 30
+#include <SPI.h>
+#include "tintty.h"
+#include "utils.h"
+#include "input.h"
+/**
+ * canvi de prova per el git
+ * TinTTY main sketch
+ * by Nick Matantsev 2017 & Gerard Forcada 2024
+ *
+ * Original reference: VT100 emulation code written by Martin K. Schroeder
+ * and modified by Peter Scargill.
+ *
+ * to-do:
+ *  Test on the original ILI9341
+ *  Port back to AVR if possible
+ *  Scroll back
+ *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
+ *
+ */
 
-TFT_eSPI tft = TFT_eSPI();
-XPT2046_HR2046_touch ts(TFT_WIDTH, TFT_HEIGHT, TOUCH_CS_PIN, &SPI1);
-class calibrator
+volatile bool running = false;
+
+tintty_display ili9341_display = {						  // from serial to display from ~236 tintty_idle(&ili9341_display)
+	TFT_AMPLADA,										  // x
+	(TFT_ALSSADA - KEYBOARD_HEIGHT),					  // y
+	TFT_AMPLADA / TINTTY_CHAR_WIDTH,					  // colCount
+	(TFT_ALSSADA - KEYBOARD_HEIGHT) / TINTTY_CHAR_HEIGHT, // rowCount
+
+	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) { // fill_rect, cursor
+		assureRefreshArea(x, y, w, h);
+		spr.fillRect(x, y, w, h, color);
+	},
+
+	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pixels) { // draw_pixels, no es fa servir
+		assureRefreshArea(x, y, w, h);
+		spr.setAddrWindow(x, y, x + w - 1, y + h - 1);
+		spr.pushColors(pixels, w * h, 1);
+	},
+
+	[](int16_t offset) { // set_vscroll
+
+	}};
+// buffer to test various input sequences
+// passa el tros indicat a;
+// unsigned static int lastRefresh;
+void refreshDisplayIfNeeded()
 {
-public:
-	bool TouchDetected = false;
-	void touchDetected()
+	static uint32_t last_check = 0;
+	uint32_t current_time = millis();
+
+	// Skip frequent checks - only check every few milliseconds
+	if (current_time - last_check < 10)
 	{
-		TouchDetected = !digitalRead(TOUCH_IRQ);
+		return;
 	}
+	last_check = current_time;
 
-	// New parameters borderX and borderY: horizontal and vertical distance from screen borders
-	// during calibration. Defaults kept to 0 for backward compatibility.
-	void calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX = 0, uint16_t borderY = 0)
+	if (myCheesyFB.hasChanges)
 	{
-		uint8_t size = 3;
-		uint16_t x_tmp, y_tmp;
-		// Fill ts.src[4] with screen bordered values, corresponds to the linear plane of the display
-		// Order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
-		ts.src[0].x = borderX;					// top-left x
-		ts.src[0].y = borderY;					// top-left y
-		ts.src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
-		ts.src[1].y = borderY;					// top-right y
-		ts.src[2].x = borderX;					// bottom-left x
-		ts.src[2].y = TFT_HEIGHT - borderY - 1; // bottom-left y
-		ts.src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
-		ts.src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
-		// Fill ts.dst with zeroes
-		for (uint8_t i = 0; i < 4; i++)
+		if (current_time > (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))
 		{
-			ts.dst[i].x = 0.0;
-			ts.dst[i].y = 0.0;
-		}
-		// corner positions adjusted by borderX/borderY and size
-		for (uint8_t i = 0; i < 4; i++)
-		{
-			// draw clear the 4 calibration boxes (background)
-			tft.fillCircle(borderX, borderY, size + 2, color_bg);
-			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);
-			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);
-			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg);
+			// Mark as outputting to prevent conflicts
+			myCheesyFB.outputting = true;
 
-			// draw target in the corner depending on i
-			switch (i)
+			// Only push the changed region for better performance
+			uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
+			uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
+
+			if (width > 0 && height > 0)
 			{
-			case 0: // top-left
-				tft.fillCircle(borderX, borderY, size, color_fg);
-				break;
-			case 1: // top-right
-				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
-				break;
-			case 2: // bottom-left
-				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
-				break;
-			case 3: // bottom-right
-				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
-				break;
+				spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
+							   myCheesyFB.minX, myCheesyFB.minY, width, height);
 			}
 
-			// user has to get the chance to release
-			if (i > 0)
-				delay(1000);
-
-			// sample 8 times and average for stability
-			for (uint8_t j = 0; j < 8; j++)
-			{
-				// Read touch coordinates
-				while (!ts.validTouch(&x_tmp, &y_tmp))
-					;
-				ts.dst[i].x += x_tmp;
-				ts.dst[i].y += y_tmp;
-			}
-			ts.dst[i].x = ts.dst[i].x / 8;
-			ts.dst[i].y = ts.dst[i].y / 8;
+			myCheesyFB.outputting = false;
+			myCheesyFB.hasChanges = false;
+			myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
 		}
 	}
-
-	// Store ts.src and ts.dst arrays to EEPROM
-	void storeCalibrationPoints()
+	else
 	{
-		EEPROM.begin(255);
-		int eePos = 16; // Start after the main calibration data (14 bytes + 2 integrity bytes)
-
-		// Store ts.src[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
-		uint8_t *srcBytePtr = (uint8_t *)ts.src;
-		for (int i = 0; i < 32; i++)
-		{
-			EEPROM.write(eePos + i, srcBytePtr[i]);
-		}
-		eePos += 32;
-
-		// Store ts.dst[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
-		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
-		for (int i = 0; i < 32; i++)
-		{
-			EEPROM.write(eePos + i, dstBytePtr[i]);
-		}
-
-		// Write integrity marker for calibration points
-		EEPROM.write(80, 0xAA); // Marker at position 80
-		EEPROM.write(81, 0x55); // Complement marker
-
-		EEPROM.commit();
-		EEPROM.end();
+		input_idle(); // aqui colisiona mutex
 	}
-
-	// Retrieve ts.src and ts.dst arrays from EEPROM
-	bool retrieveCalibrationPoints()
-	{
-		EEPROM.begin(255);
-
-		// Check integrity markers
-		if (EEPROM.read(80) != 0xAA || EEPROM.read(81) != 0x55)
-		{
-			EEPROM.end();
-			return false; // No valid calibration points stored
-		}
-
-		int eePos = 16; // Start after the main calibration data
-
-		// Retrieve ts.src[4] points
-		uint8_t *srcBytePtr = (uint8_t *)ts.src;
-		for (int i = 0; i < 32; i++)
-		{
-			srcBytePtr[i] = EEPROM.read(eePos + i);
-		}
-		eePos += 32;
-
-		// Retrieve ts.dst[4] points
-		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
-		for (int i = 0; i < 32; i++)
-		{
-			dstBytePtr[i] = EEPROM.read(eePos + i);
-		}
-
-		EEPROM.end();
-		return true; // Successfully retrieved calibration points
-	}
-
-	void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY)
-	{
-		//-------------------eeprom integrity check
-
-		if (ts.isTouching() || (!retrieveCalibrationPoints()))
-		{
-			tft.fillScreen(TFT_YELLOW);
-			delay(1000);
-			tft.fillScreen(TFT_BLACK);
-			// data not valid. recalibrate. Pass borderX/borderY into calibrateTouch
-			calibrateTouch(TFT_WHITE, TFT_RED, borderX, borderY);
-			// store data
-			storeCalibrationPoints();
-			tft.fillScreen(TFT_BLACK);
-		}
-	}
-};
-
-static calibrator *cal = new calibrator();
-
-void touchDetectedISR()
+}
+void parseToBuffer()
 {
-	cal->touchDetected();
+
+	tintty_run( // serial to Screen
+		[]()
+		{
+			// peek idle loop, non blocking?
+			while (true)
+			{
+				// bufferAtoB();
+
+				// if (userTty->available() > 0)             return (char)userTty->peek(); // Safe to read
+
+				if (buffer.head != buffer.tail)
+					return myCharBuffer[buffer.head];
+				tintty_idle(&ili9341_display); // render if needed
+
+				// input_idle();// aqui colisiona mutex
+			}
+		},
+		[]()
+		{
+			while (true)
+			{ // read char
+				// bufferAtoB();
+				tintty_idle(&ili9341_display);
+				// if (userTty->available() > 0) return (char)userTty->read(); // Safe to read
+				if (buffer.head != buffer.tail)
+					return buffer.consumeChar();
+
+				// input_idle();// aqui colisiona mutex
+			}
+		}, // send char
+		[](char ch)
+		{
+			bufferoUT.addChar(ch);
+			// if (userTty->available() == 0) userTty->write(ch);
+		},
+		&ili9341_display);
+}
+void loop1()
+{
+	refreshDisplayIfNeeded();
+	// Reduced delay for faster response - use yield instead of delay when possible
+	yield();
+}
+/*TaskHandle_t xHandle;
+TaskHandle_t xHandle1;*/
+void loop()
+{
+	/*xTaskCreate(vTaskReadSerial, "readSerial", 512, NULL, 1,  NULL );
+	xTaskCreate(vTaskParseToBuffer, "parseToBuffer", 512, NULL, 1,  NULL );
+	xTaskCreate(vTaskReadSerial, "readSerial", 512, NULL, 1,  &( xHandle ) );
+	xTaskCreate(vTaskParseToBuffer, "parseToBuffer", 512, NULL, 1,  &( xHandle1 ) );
+	vTaskCoreAffinitySet( xHandle, 1 << 0 );
+	vTaskCoreAffinitySet( xHandle1, 1 << 0 );
+	vTaskStartScheduler();
+	*/
+}
+
+void setup1()
+{
+	while (!running)
+	{
+	}
 }
 
 void setup()
 {
-	tft.init();
-	/*
-	// TESTING
-	tft.setRotation(1);
-	ts._rotation = tft.getRotation();
-	*/
-	ts.begin();
-	pinMode(TOUCH_IRQ, INPUT);
-	attachInterrupt(digitalPinToInterrupt(TOUCH_IRQ), touchDetectedISR, CHANGE);
-	tft.fillScreen(TFT_BLACK);
-	tft.setTextColor(TFT_WHITE, TFT_BLACK);
-	tft.setTextDatum(MC_DATUM);
-	tft.drawString("Touch Calibration", TFT_WIDTH / 2, TFT_HEIGHT / 2);
-	// Call calibration setup. You can pass border offsets (horizontal, vertical) in pixels:
-	cal->xpt2046CalibrateSet(BORDER_DEAD_ZONE, BORDER_DEAD_ZONE);
-}
-uint16_t xpos, ypos;
-void loop()
-{
-	if (cal->TouchDetected && ts.getTouch(&xpos, &ypos))
-	{
-		tft.fillCircle(xpos, ypos, 3, TFT_GREEN);
-	}
-	// delay(25);
+	//-----------------------setup
+	pinMode(23, OUTPUT); // millora 3.3v GPIO23 controls the RT6150 PS (Power Save) pin. When PS is low (the default on Pico)
+	digitalWrite(23, HIGH);
+
+	// Optimize Serial FIFO for better performance
+	Serial1.setFIFOSize(512); // Increased buffer size
+
+	tft.begin();
+	tft.setFreeFont(GLCD);
+	tft.setTextSize(1);
+	tft.setRotation(2);
+	gpio_pull_up(2); // ensure pull-up for receiving wire
+
+	userTty = &Serial1; // assign receiving serial port
+
+	//-----------------------init
+	giveErrorVisibility(1, 1, true);
+
+	spr.setColorDepth(8);
+
+	if (spr.createSprite(TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT)) == nullptr)
+		giveErrorVisibility(1, 2);
+
+	spr.setTextSize(1);
+	spr.fillSprite(TFT_BLACK);
+	#ifdef touchNoEspi
+		ts.begin(tft.getRotation());
+		calibrator cal = calibrator();
+		cal.xpt2046CalibrateSet(30,30);
+	#else
+		tft_espi_calibrate_touch();
+	#endif
+	
+	Serial1.begin(chooseBauds(), SERIAL_8N1);
+	
+	input_init();
+	
+
+	//---------------go!
+	running = true;
+
+	parseToBuffer();
 }

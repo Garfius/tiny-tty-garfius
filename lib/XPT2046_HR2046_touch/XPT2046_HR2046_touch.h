@@ -41,7 +41,7 @@ public:
 	// parameters[6] = displayOffsetY (pixels inset from top/bottom during calibration)
 	// void setTouch(uint16_t *data);
 
-	void begin();
+	void begin(uint8_t rotation=0);
 	uint8_t touchCalibration_rotate, touchCalibration_invert_x, touchCalibration_invert_y;
 	uint8_t validTouch(uint16_t *x, uint16_t *y, uint16_t threshold = TOUCH_THRESHOLD);
 	void setCalibrationData(uint16_t *parameters);
@@ -62,7 +62,7 @@ private:
 	// Initialise with example calibration values so processor does not crash if setTouch() not called in setup()
 
 	uint32_t _pressTime;	   // Press and hold time-out
-	uint16_t _pressX, _pressY; // For future use (last sampled calibrated coordinates)
+	//uint16_t _pressX, _pressY; // For future use (last sampled calibrated coordinates)
 	SPIClass *_spi;
 	uint16_t _width, _height;
 	uint8_t _csPin;

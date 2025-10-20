@@ -58,218 +58,151 @@ void tft_espi_calibrate_touch()
 	tft.fillScreen(TFT_BLACK);
 }
 #else
-uint16_t touchCalibration_x0 = 300, touchCalibration_x1 = 3600, touchCalibration_y0 = 300, touchCalibration_y1 = 3600;
-uint8_t  touchCalibration_rotate = 1, touchCalibration_invert_x = 2, touchCalibration_invert_y = 0;
-bool isTouching(){
-  uint16_t z1 = 1;
-  uint16_t z2 = 0;
-	
-	while (z1 > z2)
+
+	void calibrator::calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX, uint16_t borderY)
 	{
-		z2 = z1;
-		z1 = ts.getTouchRawZ();
-		delay(1);
-	}
-
-  if (z1 <= TOUCH_SENSIVITY) return false;
-  return true;
-}
-bool getTouchRaw(uint16_t *x, uint16_t *y){
-  TS_Point puntTmp;
-  //if(!isTouching())return false;
-  
-	puntTmp = ts.getPoint();
-	*x = puntTmp.x;
-	*y = puntTmp.y;
-	return true;
-}
-bool getTouchDisplay(uint16_t *x, uint16_t *y){
-	if(!getTouchRaw(x,y))return false;
-	convertRawXY(x,y);
-	return true;
-}
-
-void convertRawXY(uint16_t *x, uint16_t *y)
-{
-  uint16_t x_tmp = *x, y_tmp = *y, xx, yy;
-
-  if(!touchCalibration_rotate){
-    xx=(x_tmp-touchCalibration_x0)*TFT_AMPLADA/touchCalibration_x1;
-    yy=(y_tmp-touchCalibration_y0)*TFT_ALSSADA/touchCalibration_y1;
-    if(touchCalibration_invert_x)
-      xx = TFT_AMPLADA - xx;
-    if(touchCalibration_invert_y)
-      yy = TFT_ALSSADA - yy;
-  } else {
-    xx=(y_tmp-touchCalibration_x0)*TFT_AMPLADA/touchCalibration_x1;
-    yy=(x_tmp-touchCalibration_y0)*TFT_ALSSADA/touchCalibration_y1;
-    if(touchCalibration_invert_x)
-      xx = TFT_AMPLADA - xx;
-    if(touchCalibration_invert_y)
-      yy = TFT_ALSSADA - yy;
-  }
-  *x = xx;
-  *y = yy;
-}
-
-/***************************************************************************************
-** Function name:           calibrateTouch
-** Description:             generates calibration parameters for touchscreen. 
-***************************************************************************************/
-void xpt2046CalibrateGet(uint16_t *parameters, uint32_t color_fg, uint32_t color_bg, uint8_t size){
-  int16_t values[] = {0,0,0,0,0,0,0,0};
-  uint16_t x_tmp, y_tmp;
-
-  for(uint8_t i = 0; i<4; i++){
-    tft.fillRect(0, 0, size+1, size+1, color_bg);
-    tft.fillRect(0, TFT_ALSSADA-size-1, size+1, size+1, color_bg);
-    tft.fillRect(TFT_AMPLADA-size-1, 0, size+1, size+1, color_bg);
-    tft.fillRect(TFT_AMPLADA-size-1, TFT_ALSSADA-size-1, size+1, size+1, color_bg);
-
-    if (i == 5) break; // used to clear the arrows
-    
-    switch (i) {
-      case 0: // up left
-        tft.drawLine(0, 0, 0, size, color_fg);
-        tft.drawLine(0, 0, size, 0, color_fg);
-        tft.drawLine(0, 0, size , size, color_fg);
-        break;
-      case 1: // bot left
-        tft.drawLine(0, TFT_ALSSADA-size-1, 0, TFT_ALSSADA-1, color_fg);
-        tft.drawLine(0, TFT_ALSSADA-1, size, TFT_ALSSADA-1, color_fg);
-        tft.drawLine(size, TFT_ALSSADA-size-1, 0, TFT_ALSSADA-1 , color_fg);
-        break;
-      case 2: // up right
-        tft.drawLine(TFT_AMPLADA-size-1, 0, TFT_AMPLADA-1, 0, color_fg);
-        tft.drawLine(TFT_AMPLADA-size-1, size, TFT_AMPLADA-1, 0, color_fg);
-        tft.drawLine(TFT_AMPLADA-1, size, TFT_AMPLADA-1, 0, color_fg);
-        break;
-      case 3: // bot right
-        tft.drawLine(TFT_AMPLADA-size-1, TFT_ALSSADA-size-1, TFT_AMPLADA-1, TFT_ALSSADA-1, color_fg);
-        tft.drawLine(TFT_AMPLADA-1, TFT_ALSSADA-1-size, TFT_AMPLADA-1, TFT_ALSSADA-1, color_fg);
-        tft.drawLine(TFT_AMPLADA-1-size, TFT_ALSSADA-1, TFT_AMPLADA-1, TFT_ALSSADA-1, color_fg);
-        break;
-      }
-
-    // user has to get the chance to release
-    if(i>0) delay(1000);
-
-    for(uint8_t j= 0; j<8; j++){
-      // Use a lower detect threshold as corners tend to be less sensitive
-	  while(!isTouching());
-	  getTouchRaw(&x_tmp, &y_tmp);
-      values[i*2  ] += x_tmp;
-      values[i*2+1] += y_tmp;
-      }
-    values[i*2  ] /= 8;
-    values[i*2+1] /= 8;
-  }
-
-
-  // from case 0 to case 1, the y value changed. 
-  // If the measured delta of the touch x axis is bigger than the delta of the y axis, the touch and TFT axes are switched.
-  touchCalibration_rotate = false;
-  if(abs(values[0]-values[2]) > abs(values[1]-values[3])){
-    touchCalibration_rotate = true;
-    touchCalibration_x0 = (values[1] + values[3])/2; // calc min x
-    touchCalibration_x1 = (values[5] + values[7])/2; // calc max x
-    touchCalibration_y0 = (values[0] + values[4])/2; // calc min y
-    touchCalibration_y1 = (values[2] + values[6])/2; // calc max y
-  } else {
-    touchCalibration_x0 = (values[0] + values[2])/2; // calc min x
-    touchCalibration_x1 = (values[4] + values[6])/2; // calc max x
-    touchCalibration_y0 = (values[1] + values[5])/2; // calc min y
-    touchCalibration_y1 = (values[3] + values[7])/2; // calc max y
-  }
-
-  // in addition, the touch screen axis could be in the opposite direction of the TFT axis
-  touchCalibration_invert_x = false;
-  if(touchCalibration_x0 > touchCalibration_x1){
-    values[0]=touchCalibration_x0;
-    touchCalibration_x0 = touchCalibration_x1;
-    touchCalibration_x1 = values[0];
-    touchCalibration_invert_x = true;
-  }
-  touchCalibration_invert_y = false;
-  if(touchCalibration_y0 > touchCalibration_y1){
-    values[0]=touchCalibration_y0;
-    touchCalibration_y0 = touchCalibration_y1;
-    touchCalibration_y1 = values[0];
-    touchCalibration_invert_y = true;
-  }
-
-  // pre calculate
-  touchCalibration_x1 -= touchCalibration_x0;
-  touchCalibration_y1 -= touchCalibration_y0;
-
-  if(touchCalibration_x0 == 0) touchCalibration_x0 = 1;
-  if(touchCalibration_x1 == 0) touchCalibration_x1 = 1;
-  if(touchCalibration_y0 == 0) touchCalibration_y0 = 1;
-  if(touchCalibration_y1 == 0) touchCalibration_y1 = 1;
-
-  // export parameters, if pointer valid
-  if(parameters != NULL){
-    parameters[0] = touchCalibration_x0;
-    parameters[1] = touchCalibration_x1;
-    parameters[2] = touchCalibration_y0;
-    parameters[3] = touchCalibration_y1;
-    parameters[4] = touchCalibration_rotate | (touchCalibration_invert_x <<1) | (touchCalibration_invert_y <<2);
-  }
-}
-void xpt2046CalibrateSet()
-{
-	EEPROM.begin(255);
-
-	ts.begin(TOUCH_SENSIVITY);
-	touchCalibration_rotate = tft.getRotation();
-	uint16_t calibrationData[7]; // els 2 extra son per fer el check de si es vol fer a mà
-	uint8_t *calibrationDataBytePoint = (uint8_t *)calibrationData;
-	uint8_t calDataOK = 0;
-	uint8_t calDataTst = 0;
-	//-------------------eeprom integrity check
-	calDataOK = EEPROM.read(0);
-	calDataTst = ~EEPROM.read(1);
-	calDataOK = calDataOK == calDataTst;
-	int eePos = 2;
-	if (calDataOK && (!isTouching()))
-	{
-		// calibration data valid & NO TSOLICITED
-		for (int i = 0; i < 10; i++)
+		uint8_t size = 3;
+		uint16_t x_tmp, y_tmp;
+		// Fill ts.src[4] with screen bordered values, corresponds to the linear plane of the display
+		// Order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
+		ts.src[0].x = borderX;					// top-left x
+		ts.src[0].y = borderY;					// top-left y
+		ts.src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
+		ts.src[1].y = borderY;					// top-right y
+		ts.src[2].x = borderX;					// bottom-left x
+		ts.src[2].y = TFT_HEIGHT - borderY - 1; // bottom-left y
+		ts.src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
+		ts.src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
+		// Fill ts.dst with zeroes
+		for (uint8_t i = 0; i < 4; i++)
 		{
-			calDataTst = EEPROM.read(eePos + i);
-			calibrationDataBytePoint[i] = calDataTst;
-			eePos++;
+			ts.dst[i].x = 0.0;
+			ts.dst[i].y = 0.0;
 		}
-		setCalibrationData(calibrationData);
+		// corner positions adjusted by borderX/borderY and size
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			// draw clear the 4 calibration boxes (background)
+			tft.fillCircle(borderX, borderY, size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);
+			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg);
+
+			// draw target in the corner depending on i
+			switch (i)
+			{
+			case 0: // top-left
+				tft.fillCircle(borderX, borderY, size, color_fg);
+				break;
+			case 1: // top-right
+				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
+				break;
+			case 2: // bottom-left
+				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
+				break;
+			case 3: // bottom-right
+				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
+				break;
+			}
+
+			// user has to get the chance to release
+			if (i > 0)
+				delay(1000);
+
+			// sample 8 times and average for stability
+			for (uint8_t j = 0; j < 8; j++)
+			{
+				// Read touch coordinates
+				while (!ts.validTouch(&x_tmp, &y_tmp))
+					;
+				ts.dst[i].x += x_tmp;
+				ts.dst[i].y += y_tmp;
+			}
+			ts.dst[i].x = ts.dst[i].x / 8;
+			ts.dst[i].y = ts.dst[i].y / 8;
+		}
 	}
-	else
+	// Store ts.src and ts.dst arrays to EEPROM
+	void calibrator::storeCalibrationPoints()
 	{
-		if (isTouching())
+		EEPROM.begin(_eepromSizeInit);
+		int eePos = _eepromPos; // Start after the main calibration data (14 bytes + 2 integrity bytes)
+
+		// Store ts.src[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
+		uint8_t *srcBytePtr = (uint8_t *)ts.src;
+		for (int i = 0; i < 32; i++)
+		{
+			EEPROM.write(eePos + i, srcBytePtr[i]);
+		}
+		eePos += 32;
+
+		// Store ts.dst[4] points (4 points * 2 floats * 4 bytes = 32 bytes)
+		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
+		for (int i = 0; i < 32; i++)
+		{
+			EEPROM.write(eePos + i, dstBytePtr[i]);
+		}
+
+		// Write integrity marker for calibration points
+		EEPROM.write(80, 0xAA); // Marker at position 80
+		EEPROM.write(81, 0x55); // Complement marker
+
+		EEPROM.commit();
+		EEPROM.end();
+	}
+
+	// Retrieve ts.src and ts.dst arrays from EEPROM
+	bool calibrator::retrieveCalibrationPoints()
+	{
+		EEPROM.begin(_eepromSizeInit);
+
+		// Check integrity markers
+		if (EEPROM.read(80) != 0xAA || EEPROM.read(81) != 0x55)
+		{
+			EEPROM.end();
+			return false; // No valid calibration points stored
+		}
+
+		int eePos = _eepromPos; // Start after the main calibration data
+
+		// Retrieve ts.src[4] points
+		uint8_t *srcBytePtr = (uint8_t *)ts.src;
+		for (int i = 0; i < 32; i++)
+		{
+			srcBytePtr[i] = EEPROM.read(eePos + i);
+		}
+		eePos += 32;
+
+		// Retrieve ts.dst[4] points
+		uint8_t *dstBytePtr = (uint8_t *)ts.dst;
+		for (int i = 0; i < 32; i++)
+		{
+			dstBytePtr[i] = EEPROM.read(eePos + i);
+		}
+
+		EEPROM.end();
+		return true; // Successfully retrieved calibration points
+	}
+	
+	calibrator::calibrator(size_t eepromSizeInit,int eepromPos){
+		_eepromSizeInit = eepromSizeInit;
+		_eepromPos = eepromPos;
+	}
+	
+	void calibrator::xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY)
+	{
+		if (ts.isTouching() || (!retrieveCalibrationPoints()))
 		{
 			tft.fillScreen(TFT_YELLOW);
 			delay(1000);
 			tft.fillScreen(TFT_BLACK);
-			// data not valid. recalibrate
-			xpt2046CalibrateGet(calibrationData, TFT_WHITE, TFT_RED, 15);
+			// data not valid. recalibrate. Pass borderX/borderY into calibrateTouch
+			calibrateTouch(TFT_WHITE, TFT_RED, borderX, borderY);
 			// store data
-			while (calDataOK == EEPROM.read(0))
-			calDataOK = (uint8_t)random(0, 255); // firma
-			EEPROM.write(0, calDataOK);
-			calDataTst = ~calDataOK;
-			EEPROM.write(1, calDataTst);
-			int eePos = 2;
-			for (int i = 0; i < 10; i++)
-			{
-				calDataTst = calibrationDataBytePoint[i];
-				EEPROM.write(eePos + i, calDataTst);
-				eePos++;
-			}
-			EEPROM.commit();
-			EEPROM.end();
+			storeCalibrationPoints();
+			tft.fillScreen(TFT_BLACK);
 		}
 	}
-	tft.fillScreen(TFT_BLACK);
-}
 
 #endif
 // Add a character to the buffer - optimized version
@@ -335,7 +268,7 @@ unsigned long chooseBauds()
 	{
 		while (digitalRead(TOUCH_IRQ));
 		#ifdef touchNoEspi
-			if (getTouchDisplay(&xpos, &ypos))
+			if (ts.getTouch(&xpos, &ypos))
 		#else
 			if (tft.getTouch(&xpos, &ypos, TOUCH_SENSIVITY))
 		#endif
@@ -400,5 +333,5 @@ void giveErrorVisibility(int fast,int slow, bool init)
 CharBuffer buffer = CharBuffer(INPUT_BUFFER_SIZE, myCharBuffer);
 CharBuffer bufferoUT = CharBuffer(OUTPUT_BUFFER_SIZE, myCharBuffer2);
 #ifdef touchNoEspi
-	XPT2046_Touchscreen ts(TOUCH_CS_PIN, 255,&SPI1);
+	XPT2046_HR2046_touch ts = XPT2046_HR2046_touch(TFT_WIDTH,TFT_HEIGHT,TOUCH_CS_PIN,&SPI1);
 #endif

@@ -35,6 +35,18 @@
         "thread": "cpp",
         "regex": "cpp",
         "*.tinttygarf": "cpp",
-        "*.touchsimpleok": "cpp"
+        "*.touchsimpleok": "cpp",
+        "functional": "cpp",
+        "optional": "cpp",
+        "*.calibrainterpola": "cpp",
+        "iterator": "cpp",
+        "map": "cpp",
+        "numeric": "cpp",
+        "ratio": "cpp",
+        "set": "cpp",
+        "system_error": "cpp",
+        "utility": "cpp",
+        "*.calib2": "cpp",
+        "*.touchtest": "cpp"
     }
 }

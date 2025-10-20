@@ -191,14 +191,14 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	if (x_tmp >= _width || y_tmp >= _height)
 		return false;
 	this->rotateCoordinates(x_tmp,y_tmp,_rotation);
-	_pressX = x_tmp;
-	_pressY = y_tmp;
-	*x = _pressX;
-	*y = _pressY;
+
+	*x = x_tmp;
+	*y = y_tmp;
 	return valid;
 }
-void XPT2046_HR2046_touch::begin()
+void XPT2046_HR2046_touch::begin(uint8_t rotation)
 {
+	_rotation = rotation;
 	_spi->begin();
 	pinMode(_csPin, OUTPUT);
 	digitalWrite(_csPin, HIGH);
