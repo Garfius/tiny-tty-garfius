@@ -50,6 +50,7 @@ public:
 	Point_XPT2046_HR2046_touch src[4];
 	Point_XPT2046_HR2046_touch dst[4];
 	bool mapPoint(float x, float y, Point_XPT2046_HR2046_touch &result);
+	void rotateCoordinates(uint16_t &x, uint16_t &y, uint8_t rotation);
 
 private:
 	// Legacy support only - deprecated TODO: delete

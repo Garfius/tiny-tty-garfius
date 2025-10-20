@@ -256,15 +256,15 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 	}
 
 	// Clamp u and v to valid range
-/*	if (u < 0.0)
-		u = 0.0;
-	if (u > 1.0)
-		u = 1.0;
-	if (v < 0.0)
-		v = 0.0;
-	if (v > 1.0)
-		v = 1.0;
-*/
+	/*	if (u < 0.0)
+			u = 0.0;
+		if (u > 1.0)
+			u = 1.0;
+		if (v < 0.0)
+			v = 0.0;
+		if (v > 1.0)
+			v = 1.0;
+	*/
 	// Now map from normalized (u,v) to screen coordinates using src points
 	// src[0] = top-left screen, src[1] = top-right screen
 	// src[2] = bottom-left screen, src[3] = bottom-right screen
@@ -283,4 +283,44 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 	result.y = (1.0 - v) * top_y + v * bottom_y;
 
 	return true;
+}
+
+/***************************************************************************************
+** Function name:           rotateCoordinates
+** Description:             Apply rotation transformation to coordinates based on display rotation
+** Parameters:              x, y - coordinates to rotate (modified in place)
+**                         rotation - rotation value (0=no rotation, 1=90°, 2=180°, 3=270°)
+***************************************************************************************/
+void XPT2046_HR2046_touch::rotateCoordinates(uint16_t &x, uint16_t &y, uint8_t rotation)
+{
+	uint16_t temp_x, temp_y;
+
+	switch (rotation & 3) // Ensure rotation is 0-3
+	{
+	case 0: // No rotation
+		// x and y remain unchanged
+		break;
+
+	case 1: // 90 degrees clockwise
+		// (x,y) -> (height-1-y, x)
+		temp_x = _height - 1 - y;
+		temp_y = x;
+		x = temp_x;
+		y = temp_y;
+		break;
+
+	case 2: // 180 degrees
+		// (x,y) -> (width-1-x, height-1-y)
+		x = _width - 1 - x;
+		y = _height - 1 - y;
+		break;
+
+	case 3: // 270 degrees clockwise (or 90 degrees counter-clockwise)
+		// (x,y) -> (y, width-1-x)
+		temp_x = y;
+		temp_y = _width - 1 - x;
+		x = temp_x;
+		y = temp_y;
+		break;
+	}
 }
