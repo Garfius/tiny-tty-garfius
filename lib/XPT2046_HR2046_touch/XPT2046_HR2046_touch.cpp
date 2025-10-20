@@ -224,32 +224,63 @@ bool XPT2046_HR2046_touch::mapPoint(float x, float y, Point_XPT2046_HR2046_touch
 		return false; // No calibration data
 	}
 
-	// Normalize coordinates to the src rectangle
-	float width = src[1].x - src[0].x;	// top-right x - top-left x
-	float height = src[2].y - src[0].y; // bottom-left y - top-left y
+	// Calculate the normalized position within the destination touch coordinate space
+	// dst[0] = top-left touch coords, dst[1] = top-right touch coords
+	// dst[2] = bottom-left touch coords, dst[3] = bottom-right touch coords
 
-	if (width <= 0 || height <= 0)
+	// Calculate touch coordinate ranges
+	float dst_width_top = dst[1].x - dst[0].x;	  // top edge width in touch coords
+	float dst_width_bottom = dst[3].x - dst[2].x; // bottom edge width in touch coords
+	float dst_height_left = dst[2].y - dst[0].y;  // left edge height in touch coords
+	float dst_height_right = dst[3].y - dst[1].y; // right edge height in touch coords
+
+	// Find the normalized position (u,v) within the touch coordinate quadrilateral
+	// This is an inverse bilinear interpolation problem
+
+	// For simplicity, we'll use the average method for now
+	// Calculate u (horizontal position 0-1) by finding relative position along top/bottom edges
+	float u = 0.5, v = 0.5; // default to center if calculation fails
+
+	// Calculate u using top edge as reference
+	if (abs(dst_width_top) > 1.0)
 	{
-		return false; // Invalid source rectangle
+		float u_top = (x - dst[0].x) / dst_width_top;
+		u = u_top;
 	}
 
-	float u = (x - src[0].x) / width;  // horizontal ratio (0-1)
-	float v = (y - src[0].y) / height; // vertical ratio (0-1)
+	// Calculate v using left edge as reference
+	if (abs(dst_height_left) > 1.0)
+	{
+		float v_left = (y - dst[0].y) / dst_height_left;
+		v = v_left;
+	}
 
-	Point_XPT2046_HR2046_touch top, bottom;
+	// Clamp u and v to valid range
+	if (u < 0.0)
+		u = 0.0;
+	if (u > 1.0)
+		u = 1.0;
+	if (v < 0.0)
+		v = 0.0;
+	if (v > 1.0)
+		v = 1.0;
 
-	// Bilinear interpolation
-	// Horizontal interpolation for top edge (between points 0 and 1)
-	top.x = (1 - u) * dst[0].x + u * dst[1].x;
-	top.y = (1 - u) * dst[0].y + u * dst[1].y;
+	// Now map from normalized (u,v) to screen coordinates using src points
+	// src[0] = top-left screen, src[1] = top-right screen
+	// src[2] = bottom-left screen, src[3] = bottom-right screen
 
-	// Horizontal interpolation for bottom edge (between points 2 and 3)
-	bottom.x = (1 - u) * dst[2].x + u * dst[3].x;
-	bottom.y = (1 - u) * dst[2].y + u * dst[3].y;
+	// Bilinear interpolation in screen coordinate space
+	// Top edge interpolation
+	float top_x = (1.0 - u) * src[0].x + u * src[1].x;
+	float top_y = (1.0 - u) * src[0].y + u * src[1].y;
 
-	// Vertical interpolation between top and bottom
-	result.x = (1 - v) * top.x + v * bottom.x;
-	result.y = (1 - v) * top.y + v * bottom.y;
+	// Bottom edge interpolation
+	float bottom_x = (1.0 - u) * src[2].x + u * src[3].x;
+	float bottom_y = (1.0 - u) * src[2].y + u * src[3].y;
+
+	// Final vertical interpolation
+	result.x = (1.0 - v) * top_x + v * bottom_x;
+	result.y = (1.0 - v) * top_y + v * bottom_y;
 
 	return true;
 }
