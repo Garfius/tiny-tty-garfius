@@ -26,8 +26,15 @@ public:
 	// reported by Test_Touch_Controller when the screen is NOT touched. When touched the z value
 	// must be higher than the threshold for a touch to be detected.
 	uint8_t getTouch(uint16_t *x, uint16_t *y, uint16_t threshold = TOUCH_THRESHOLD);
-	// Set the screen calibration values
-	void setTouch(uint16_t *data);
+	// Set the screen calibration values (parameters layout extended):
+	// parameters[0] = touchCalibration_x0 (raw min)
+	// parameters[1] = touchCalibration_x1 (raw range max-min)
+	// parameters[2] = touchCalibration_y0 (raw min)
+	// parameters[3] = touchCalibration_y1 (raw range max-min)
+	// parameters[4] = flags (rotate/invert bits)
+	// parameters[5] = displayOffsetX (pixels inset from left/right during calibration)
+	// parameters[6] = displayOffsetY (pixels inset from top/bottom during calibration)
+	//void setTouch(uint16_t *data);
 
 	void begin(uint8_t touchCalibration_rotate = 1, uint8_t touchCalibration_invert_x = 2, uint8_t touchCalibration_invert_y = 0);
 	uint16_t touchCalibration_x0 = 300, touchCalibration_x1 = 3600, touchCalibration_y0 = 300, touchCalibration_y1 = 3600;
@@ -35,6 +42,8 @@ public:
 	uint8_t validTouch(uint16_t *x, uint16_t *y, uint16_t threshold = TOUCH_THRESHOLD);
 	void setCalibrationData(uint16_t *parameters);
 	bool isTouching(uint16_t threshold = TOUCH_THRESHOLD);
+	uint16_t displayOffsetX = 0;
+	uint16_t displayOffsetY = 0;
 
 private:
 	// Legacy support only - deprecated TODO: delete
@@ -50,5 +59,8 @@ private:
 	SPIClass *_spi;
 	uint16_t _width, _height;
 	uint8_t _csPin;
+
+	// Display offsets (pixels) used when calibration targets were inset from edges.
+	// These default to 0 (full-screen calibration). Values are set by setCalibrationData / setTouch
 };
 #endif
