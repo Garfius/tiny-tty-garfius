@@ -23,7 +23,7 @@ struct touchKey {
     int code, shiftCode;
     char label;
 };
-//INFO teclatNoH85 = ["[","]","\\","_","{","}","|","\""]
+
 struct touchKeyRow {
     int16_t y;
     int keyCount;
@@ -31,10 +31,10 @@ struct touchKeyRow {
 } touchKeyRows[6] = {
     {
         KEY_ROW_A_Y,
-        13,// key count
+        13,
         {
-            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '~', 0 }, // shrunk width
-            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },// a struct touchKey
+            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '~', 0 },
+            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },
             { KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0 },
             { KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0 },
             { KEY_ROW_A_X(4), KEY_WIDTH, '4', '$', 0 },
@@ -50,7 +50,7 @@ struct touchKeyRow {
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 1,
-        12,
+        13,
         {
             { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 8, 8, 27 },
             { KEY_ROW_B_X(0), KEY_WIDTH, 9, 9, 26 },
@@ -64,39 +64,39 @@ struct touchKeyRow {
             { KEY_ROW_B_X(7), KEY_WIDTH, 'u', 'U', 0 },
             { KEY_ROW_B_X(8), KEY_WIDTH, 'i', 'I', 0 },
             { KEY_ROW_B_X(9), KEY_WIDTH, 'o', 'O', 0 },
-            { KEY_ROW_B_X(10), TFT_AMPLADA - 1 - KEY_ROW_B_X(10), 'p', 'P', 0 }
+            { KEY_ROW_B_X(10), KEY_WIDTH, 'p', 'P', 0 },
+            { KEY_ROW_B_X(11), TFT_AMPLADA - 1 - KEY_ROW_B_X(11), '[', '{', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 2,
-        13,
+        12,
         {
-            { 1, KEY_ROW_C_X(1) - 1 - KEY_GUTTER, '[', '{', 0 },
-            { KEY_ROW_C_X(1), KEY_WIDTH, ']', '}', 0 },
-            { KEY_ROW_C_X(2), KEY_WIDTH, '\\', '|', 0 },
+            { 1, KEY_ROW_C_X(1) - 1 - KEY_GUTTER, ']', '}', 0 },
+            { KEY_ROW_C_X(1), KEY_WIDTH, '\\', '|', 0 },
 
             {
-                KEY_ROW_C_X(3),
+                KEY_ROW_C_X(2),
                 KEY_WIDTH,
                 KEYCODE_CAPS,
                 KEYCODE_CAPS,
                 18
             },
 
-            { KEY_ROW_C_X(4), KEY_WIDTH, 'a', 'A', 0 },
-            { KEY_ROW_C_X(5), KEY_WIDTH, 's', 'S', 0 },
-            { KEY_ROW_C_X(6), KEY_WIDTH, 'd', 'D', 0 },
-            { KEY_ROW_C_X(7), KEY_WIDTH, 'f', 'F', 0 },
-            { KEY_ROW_C_X(8), KEY_WIDTH, 'g', 'G', 0 },
-            { KEY_ROW_C_X(9), KEY_WIDTH, 'h', 'H', 0 },
-            { KEY_ROW_C_X(10), KEY_WIDTH, 'j', 'J', 0 },
-            { KEY_ROW_C_X(11), KEY_WIDTH, 'k', 'K', 0 },
-            { KEY_ROW_C_X(12), TFT_AMPLADA - 1 - KEY_ROW_C_X(12), 'l', 'L', 0 }
+            { KEY_ROW_C_X(3), KEY_WIDTH, 'a', 'A', 0 },
+            { KEY_ROW_C_X(4), KEY_WIDTH, 's', 'S', 0 },
+            { KEY_ROW_C_X(5), KEY_WIDTH, 'd', 'D', 0 },
+            { KEY_ROW_C_X(6), KEY_WIDTH, 'f', 'F', 0 },
+            { KEY_ROW_C_X(7), KEY_WIDTH, 'g', 'G', 0 },
+            { KEY_ROW_C_X(8), KEY_WIDTH, 'h', 'H', 0 },
+            { KEY_ROW_C_X(9), KEY_WIDTH, 'j', 'J', 0 },
+            { KEY_ROW_C_X(10), KEY_WIDTH, 'k', 'K', 0 },
+            { KEY_ROW_C_X(11), TFT_AMPLADA - 1 - KEY_ROW_C_X(11), 'l', 'L', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 3,
-        12,
+        11,
         {
             { 1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, ';', ':', 0 },
             { KEY_ROW_D_X(1), KEY_WIDTH, '\'', '"', 0 },
@@ -104,7 +104,7 @@ struct touchKeyRow {
 
             {
                 KEY_ROW_D_X(3),
-                (KEY_ROW_D_X(4) - KEY_GUTTER - KEY_ROW_D_X(3)),
+                KEY_WIDTH,
                 KEYCODE_SHIFT,
                 KEYCODE_SHIFT,
                 24
@@ -116,8 +116,7 @@ struct touchKeyRow {
             { KEY_ROW_D_X(7), KEY_WIDTH, 'v', 'V', 0 },
             { KEY_ROW_D_X(8), KEY_WIDTH, 'b', 'B', 0 },
             { KEY_ROW_D_X(9), KEY_WIDTH, 'n', 'N', 0 },
-            { KEY_ROW_D_X(10), KEY_WIDTH, 'm', 'M', 0 },
-            { KEY_ROW_D_X(11), TFT_AMPLADA - 1 - KEY_ROW_D_X(11), KEYCODE_SHIFT, KEYCODE_SHIFT, 24 }
+            { KEY_ROW_D_X(10), TFT_AMPLADA - 1 - KEY_ROW_D_X(10), 'm', 'M', 0 }
         }
     },
     {
@@ -130,21 +129,21 @@ struct touchKeyRow {
 
             {
                 1 + (KEY_WIDTH + KEY_GUTTER) * 3,
-                (KEY_WIDTH + KEY_GUTTER) * 2,
+                KEY_WIDTH + KEY_GUTTER + KEY_WIDTH / 2,
                 KEYCODE_SHIFT,
                 KEYCODE_SHIFT,
                 24
             },
 
             {
-                1 + (KEY_WIDTH + KEY_GUTTER) * 5,
-                KEY_WIDTH * 2,
+                1 + (KEY_WIDTH + KEY_GUTTER) * 3 + KEY_WIDTH + KEY_GUTTER + KEY_WIDTH / 2 + KEY_GUTTER,
+                KEY_WIDTH + KEY_WIDTH / 2,
                 KEYCODE_CONTROL,
                 KEYCODE_CONTROL,
                 'C'
             },
 
-            { TFT_AMPLADA - 100 - KEY_GUTTER, 100, ' ', ' ', ' ' }
+            { TFT_AMPLADA - 105 - KEY_GUTTER, 105, ' ', ' ', ' ' }
         }
     },
     {
