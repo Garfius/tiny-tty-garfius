@@ -16,25 +16,25 @@
 
 #define KEYCODE_INSERT// LLIGAR A: 285
 
-const int touchKeyRowCount = 5;
+const int touchKeyRowCount = 6;
 
 struct touchKey {
     int16_t x, width;
     int code, shiftCode;
     char label;
 };
-
+//INFO teclatNoH85 = ["[","]","\\","_","{","}","|","\""]
 struct touchKeyRow {
     int16_t y;
     int keyCount;
     struct touchKey keys[14];
-} touchKeyRows[5] = {
+} touchKeyRows[6] = {
     {
         KEY_ROW_A_Y,
-        14,
+        13,// key count
         {
             { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '~', 0 }, // shrunk width
-            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },
+            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },// a struct touchKey
             { KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0 },
             { KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0 },
             { KEY_ROW_A_X(4), KEY_WIDTH, '4', '$', 0 },
@@ -45,104 +45,112 @@ struct touchKeyRow {
             { KEY_ROW_A_X(9), KEY_WIDTH, '9', '(', 0 },
             { KEY_ROW_A_X(10), KEY_WIDTH, '0', ')', 0 },
             { KEY_ROW_A_X(11), KEY_WIDTH, '-', '_', 0 },
-            { KEY_ROW_A_X(12), KEY_WIDTH, '=', '+', 0 },
-            { KEY_ROW_A_X(13), TFT_AMPLADA - 1 - KEY_ROW_A_X(13), 8, 8, 27 }
+            { KEY_ROW_A_X(12), TFT_AMPLADA - 1 - KEY_ROW_A_X(12), '=', '+', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 1,
-        14,
+        12,
         {
-            { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 9, 9, 26 },
+            { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 8, 8, 27 },
+            { KEY_ROW_B_X(0), KEY_WIDTH, 9, 9, 26 },
 
-            { KEY_ROW_B_X(0), KEY_WIDTH, 'q', 'Q', 0 },
-            { KEY_ROW_B_X(1), KEY_WIDTH, 'w', 'W', 0 },
-            { KEY_ROW_B_X(2), KEY_WIDTH, 'e', 'E', 0 },
-            { KEY_ROW_B_X(3), KEY_WIDTH, 'r', 'R', 0 },
-            { KEY_ROW_B_X(4), KEY_WIDTH, 't', 'T', 0 },
-            { KEY_ROW_B_X(5), KEY_WIDTH, 'y', 'Y', 0 },
-            { KEY_ROW_B_X(6), KEY_WIDTH, 'u', 'U', 0 },
-            { KEY_ROW_B_X(7), KEY_WIDTH, 'i', 'I', 0 },
-            { KEY_ROW_B_X(8), KEY_WIDTH, 'o', 'O', 0 },
-            { KEY_ROW_B_X(9), KEY_WIDTH, 'p', 'P', 0 },
-            { KEY_ROW_B_X(10), KEY_WIDTH, '[', '{', 0 },
-            { KEY_ROW_B_X(11), KEY_WIDTH, ']', '}', 0 },
-            { KEY_ROW_B_X(12), TFT_AMPLADA - 1 - KEY_ROW_B_X(12), '\\', '|', 0 }
+            { KEY_ROW_B_X(1), KEY_WIDTH, 'q', 'Q', 0 },
+            { KEY_ROW_B_X(2), KEY_WIDTH, 'w', 'W', 0 },
+            { KEY_ROW_B_X(3), KEY_WIDTH, 'e', 'E', 0 },
+            { KEY_ROW_B_X(4), KEY_WIDTH, 'r', 'R', 0 },
+            { KEY_ROW_B_X(5), KEY_WIDTH, 't', 'T', 0 },
+            { KEY_ROW_B_X(6), KEY_WIDTH, 'y', 'Y', 0 },
+            { KEY_ROW_B_X(7), KEY_WIDTH, 'u', 'U', 0 },
+            { KEY_ROW_B_X(8), KEY_WIDTH, 'i', 'I', 0 },
+            { KEY_ROW_B_X(9), KEY_WIDTH, 'o', 'O', 0 },
+            { KEY_ROW_B_X(10), TFT_AMPLADA - 1 - KEY_ROW_B_X(10), 'p', 'P', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 2,
         13,
         {
+            { 1, KEY_ROW_C_X(1) - 1 - KEY_GUTTER, '[', '{', 0 },
+            { KEY_ROW_C_X(1), KEY_WIDTH, ']', '}', 0 },
+            { KEY_ROW_C_X(2), KEY_WIDTH, '\\', '|', 0 },
+
             {
-                1,
-                (KEY_ROW_C_X(0) - KEY_GUTTER - 1),
+                KEY_ROW_C_X(3),
+                KEY_WIDTH,
                 KEYCODE_CAPS,
                 KEYCODE_CAPS,
                 18
             },
 
-            { KEY_ROW_C_X(0), KEY_WIDTH, 'a', 'A', 0 },
-            { KEY_ROW_C_X(1), KEY_WIDTH, 's', 'S', 0 },
-            { KEY_ROW_C_X(2), KEY_WIDTH, 'd', 'D', 0 },
-            { KEY_ROW_C_X(3), KEY_WIDTH, 'f', 'F', 0 },
-            { KEY_ROW_C_X(4), KEY_WIDTH, 'g', 'G', 0 },
-            { KEY_ROW_C_X(5), KEY_WIDTH, 'h', 'H', 0 },
-            { KEY_ROW_C_X(6), KEY_WIDTH, 'j', 'J', 0 },
-            { KEY_ROW_C_X(7), KEY_WIDTH, 'k', 'K', 0 },
-            { KEY_ROW_C_X(8), KEY_WIDTH, 'l', 'L', 0 },
-            { KEY_ROW_C_X(9), KEY_WIDTH, ';', ':', 0 },
-            { KEY_ROW_C_X(10), KEY_WIDTH, '\'', '"', 0 },
-
-            { KEY_ROW_C_X(11), TFT_AMPLADA - 1 - KEY_ROW_C_X(11), 13, 13, 16 }
+            { KEY_ROW_C_X(4), KEY_WIDTH, 'a', 'A', 0 },
+            { KEY_ROW_C_X(5), KEY_WIDTH, 's', 'S', 0 },
+            { KEY_ROW_C_X(6), KEY_WIDTH, 'd', 'D', 0 },
+            { KEY_ROW_C_X(7), KEY_WIDTH, 'f', 'F', 0 },
+            { KEY_ROW_C_X(8), KEY_WIDTH, 'g', 'G', 0 },
+            { KEY_ROW_C_X(9), KEY_WIDTH, 'h', 'H', 0 },
+            { KEY_ROW_C_X(10), KEY_WIDTH, 'j', 'J', 0 },
+            { KEY_ROW_C_X(11), KEY_WIDTH, 'k', 'K', 0 },
+            { KEY_ROW_C_X(12), TFT_AMPLADA - 1 - KEY_ROW_C_X(12), 'l', 'L', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 3,
         12,
         {
-            { KEY_ROW_D_X(0), KEY_WIDTH, 'z', 'Z', 0 },
-            { KEY_ROW_D_X(1), KEY_WIDTH, 'x', 'X', 0 },
-            { KEY_ROW_D_X(2), KEY_WIDTH, 'c', 'C', 0 },
-            { KEY_ROW_D_X(3), KEY_WIDTH, 'v', 'V', 0 },
-            { KEY_ROW_D_X(4), KEY_WIDTH, 'b', 'B', 0 },
-            { KEY_ROW_D_X(5), KEY_WIDTH, 'n', 'N', 0 },
-            { KEY_ROW_D_X(6), KEY_WIDTH, 'm', 'M', 0 },
-            { KEY_ROW_D_X(7), KEY_WIDTH, ',', '<', 0 },
-            { KEY_ROW_D_X(8), KEY_WIDTH, '.', '>', 0 },
-            { KEY_ROW_D_X(9), KEY_WIDTH, '/', '?', 0 },
+            { 1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, ';', ':', 0 },
+            { KEY_ROW_D_X(1), KEY_WIDTH, '\'', '"', 0 },
+            { KEY_ROW_D_X(2), KEY_WIDTH, 13, 13, 16 },
 
             {
-                1,
-                (KEY_ROW_D_X(0) - KEY_GUTTER - 1),
+                KEY_ROW_D_X(3),
+                (KEY_ROW_D_X(4) - KEY_GUTTER - KEY_ROW_D_X(3)),
+                KEYCODE_SHIFT,
+                KEYCODE_SHIFT,
+                24
+            },
+
+            { KEY_ROW_D_X(4), KEY_WIDTH, 'z', 'Z', 0 },
+            { KEY_ROW_D_X(5), KEY_WIDTH, 'x', 'X', 0 },
+            { KEY_ROW_D_X(6), KEY_WIDTH, 'c', 'C', 0 },
+            { KEY_ROW_D_X(7), KEY_WIDTH, 'v', 'V', 0 },
+            { KEY_ROW_D_X(8), KEY_WIDTH, 'b', 'B', 0 },
+            { KEY_ROW_D_X(9), KEY_WIDTH, 'n', 'N', 0 },
+            { KEY_ROW_D_X(10), KEY_WIDTH, 'm', 'M', 0 },
+            { KEY_ROW_D_X(11), TFT_AMPLADA - 1 - KEY_ROW_D_X(11), KEYCODE_SHIFT, KEYCODE_SHIFT, 24 }
+        }
+    },
+    {
+        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
+        7,
+        {
+            { 1, KEY_WIDTH, ',', '<', 0 },
+            { 1 + (KEY_WIDTH + KEY_GUTTER), KEY_WIDTH, '.', '>', 0 },
+            { 1 + (KEY_WIDTH + KEY_GUTTER) * 2, KEY_WIDTH, '/', '?', 0 },
+
+            {
+                1 + (KEY_WIDTH + KEY_GUTTER) * 3,
+                (KEY_WIDTH + KEY_GUTTER) * 2,
                 KEYCODE_SHIFT,
                 KEYCODE_SHIFT,
                 24
             },
 
             {
-                KEY_ROW_D_X(10),
-                TFT_AMPLADA - 1 - KEY_ROW_D_X(10),
-                KEYCODE_SHIFT,
-                KEYCODE_SHIFT,
-                24
-            }
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
-        6,
-        {
-            {
-                1,
-                22,
+                1 + (KEY_WIDTH + KEY_GUTTER) * 5,
+                KEY_WIDTH * 2,
                 KEYCODE_CONTROL,
                 KEYCODE_CONTROL,
                 'C'
             },
 
-            { (TFT_AMPLADA - 100) / 2, 100, ' ', ' ', ' ' },
-
+            { TFT_AMPLADA - 100 - KEY_GUTTER, 100, ' ', ' ', ' ' }
+        }
+    },
+    {
+        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 5,
+        4,
+        {
             { ARROW_KEY_X(0), KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17 },
             { ARROW_KEY_X(1), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30 },
             { ARROW_KEY_X(2), KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31 },
@@ -264,7 +272,7 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
 
             if (shiftIsActive) {
                 bufferoUT.addChar((char)activeKey->shiftCode);
-                
+
                 // clear back to lowercase unless caps-lock
                 if (!shiftIsSticky) {
                     _input_set_mode(false, false, false);
@@ -336,7 +344,7 @@ unsigned int lastTouch = 0;
  * tarda keyboardReleaseMillis a donar per aixecat el boli
  * keyboardAutoRepeatMillis
 */
-void input_idle() {// passar a lastTouch, permetre baixar 
+void input_idle() {// passar a lastTouch, permetre baixar
     #ifdef touchNoEspi
         if (TouchDetected && ts.isTouching()) {
     #else

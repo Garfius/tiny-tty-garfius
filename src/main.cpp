@@ -19,6 +19,21 @@
  *  Scroll back
  *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
  *
+ * PINOUT:
+ *	T_IRQ				8 (config.h)TOUCH_IRQ
+ *	T_OUT	MISO1	_RX	12
+ *	T_DIN	MOSI1	_TX	15
+ *	T_CS	CS1			13 ¿TOUCH_CS_PIN 7?
+ *	T_CLK	SCK1	CLK	14
+ *	SDO		MISO0		16 ¡NO TRISTATE!
+ *	LED					3.3V || 5V || PWM
+ *	SCK		CLK0		18
+ *	SDI		MOSI0		19
+ *	D/C					2 (TFT_eSPI\User_Setup.h)TFT_DC
+ *	RESET				3 (TFT_eSPI\User_Setup.h)TFT_RST
+ *	CS		CS0			15 (TFT_eSPI\User_Setup.h)TFT_CS
+ *	GND		GND 0V
+ *	VCC		5V
  */
 
 volatile bool running = false;
@@ -186,11 +201,11 @@ void setup()
 	#else
 		tft_espi_calibrate_touch();
 	#endif
-	
+
 	Serial1.begin(chooseBauds(), SERIAL_8N1);
-	
+
 	input_init();
-	
+
 
 	//---------------go!
 	running = true;
