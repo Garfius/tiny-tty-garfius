@@ -111,7 +111,7 @@ void parseToBuffer()
 				// if (userTty->available() > 0)             return (char)userTty->peek(); // Safe to read
 
 				if (buffer.head != buffer.tail)
-					return myCharBuffer[buffer.head];
+					return buffer.myCharBuffer[buffer.head];
 				tintty_idle(&ili9341_display); // render if needed
 
 				// input_idle();// aqui colisiona mutex
@@ -122,8 +122,8 @@ void parseToBuffer()
 			while (true)
 			{ // read char
 				// bufferAtoB();
-				tintty_idle(&ili9341_display);
 				// if (userTty->available() > 0) return (char)userTty->read(); // Safe to read
+				tintty_idle(&ili9341_display);
 				if (buffer.head != buffer.tail)
 					return buffer.consumeChar();
 
