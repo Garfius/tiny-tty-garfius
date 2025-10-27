@@ -61,7 +61,7 @@ void tft_espi_calibrate_touch()
 
 	void calibrator::calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX, uint16_t borderY)
 	{
-		uint8_t size = 3;
+		uint8_t size = 4;
 		uint16_t x_tmp, y_tmp;
 		// Fill ts.src[4] with screen bordered values, corresponds to the linear plane of the display
 		// Order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
@@ -84,9 +84,9 @@ void tft_espi_calibrate_touch()
 		{
 			// draw clear the 4 calibration boxes (background)
 			tft.fillCircle(borderX, borderY, size + 2, color_bg);
-			tft.fillCircle(TFT_WIDTH - borderX - size, borderY, size + 2, color_bg);
-			tft.fillCircle(borderX, TFT_HEIGHT - borderY - size, size + 2, color_bg);
-			tft.fillCircle(TFT_WIDTH - borderX - size, TFT_HEIGHT - borderY - size, size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - (int)(size/2), borderY, size + 2, color_bg);
+			tft.fillCircle(borderX, TFT_HEIGHT - borderY - (int)(size/2), size + 2, color_bg);
+			tft.fillCircle(TFT_WIDTH - borderX - (int)(size/2), TFT_HEIGHT - borderY - (int)(size/2), size + 2, color_bg);
 
 			// draw target in the corner depending on i
 			switch (i)
@@ -95,19 +95,21 @@ void tft_espi_calibrate_touch()
 				tft.fillCircle(borderX, borderY, size, color_fg);
 				break;
 			case 1: // top-right
-				tft.fillCircle(TFT_WIDTH - borderX - 1, borderY, size, color_fg);
+				tft.fillCircle(TFT_WIDTH - borderX, borderY, size, color_fg);
 				break;
 			case 2: // bottom-left
-				tft.fillCircle(borderX, TFT_HEIGHT - borderY - 1, size, color_fg);
+				tft.fillCircle(borderX, TFT_HEIGHT - borderY , size, color_fg);
 				break;
 			case 3: // bottom-right
-				tft.fillCircle(TFT_WIDTH - borderX - 1, TFT_HEIGHT - borderY - 1, size, color_fg);
+				tft.fillCircle(TFT_WIDTH - borderX , TFT_HEIGHT - borderY , size, color_fg);
 				break;
 			}
 
+			tft.fillCircle(TFT_WIDTH/2 , TFT_HEIGHT /2 , size*2, TFT_GREEN);
 			// user has to get the chance to release
 			if (i > 0)
-				delay(1000);
+				delay(2000);
+			tft.fillCircle(TFT_WIDTH/2 , TFT_HEIGHT /2 , size*2, TFT_BLACK);
 
 			// sample 8 times and average for stability
 			for (uint8_t j = 0; j < 8; j++)

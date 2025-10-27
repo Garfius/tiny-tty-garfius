@@ -20,7 +20,7 @@
 #define keyboardReleaseMillis 75 // anti bounce
 
 //-----------touch
-#define TOUCH_CS_PIN  7
+#define TOUCH_CS_PIN  13
 #define TOUCH_IRQ 8
 //
 

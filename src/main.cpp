@@ -95,10 +95,7 @@ void refreshDisplayIfNeeded()
 			myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
 		}
 	}
-	else
-	{
-		input_idle(); // aqui colisiona mutex
-	}
+	
 }
 void parseToBuffer()
 {
@@ -179,7 +176,7 @@ void setup()
 	tft.begin();
 	tft.setFreeFont(GLCD);
 	tft.setTextSize(1);
-	tft.setRotation(2);
+	tft.setRotation(0);
 	gpio_pull_up(2); // ensure pull-up for receiving wire
 
 	userTty = &Serial1; // assign receiving serial port

@@ -1,0 +1,87 @@
+#include <Arduino.h>
+#include <TFT_eSPI.h>
+TFT_eSPI tft;
+
+void printAllCharacters() {
+	const int CHAR_HEIGHT = 8;  // Character height in pixels for text size 1
+	const int LINE_SPACING = 10; // Space between lines
+	int screenHeight = tft.height();
+	int y = 0;
+
+	tft.fillScreen(TFT_BLACK);
+	tft.setTextColor(TFT_WHITE, TFT_BLACK);
+	tft.setCursor(0, 0);
+
+	Serial.println("Starting character display. Press any key to continue when prompted...");
+
+	for (int charValue = 0; charValue <= 255; charValue++) {
+		// Check if we've reached the bottom of the screen
+		if (y + LINE_SPACING > screenHeight) {
+			// Wait for serial keypress
+			tft.setCursor(0, screenHeight - LINE_SPACING);
+			tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+			
+
+			Serial.println("Bottom of screen reached. Press any key to continue...");
+
+			// Wait for serial input
+			while (!Serial.available()) {
+				delay(10);
+			}
+
+			// Clear the serial buffer
+			while (Serial.available()) {
+				Serial.read();
+			}
+
+			// Clear screen and reset position
+			tft.fillScreen(TFT_BLACK);
+			tft.setTextColor(TFT_WHITE, TFT_BLACK);
+			y = 0;
+		}
+
+		// Display character and its byte value
+		tft.setCursor(0, y);
+
+		// Print character (if printable) or a placeholder
+		
+        tft.print("'");
+        tft.print((char)charValue);
+        tft.print("'");
+    
+
+		// Print byte value in decimal and hex
+		tft.print(" = ");
+		tft.print(charValue);
+		tft.print(" (0x");
+		if (charValue < 16) tft.print("0");
+		tft.print(charValue, HEX);
+		tft.print(")");
+        
+
+
+		y += LINE_SPACING;
+	}
+
+	// Final message
+	tft.setCursor(0, y + LINE_SPACING);
+	tft.setTextColor(TFT_GREEN, TFT_BLACK);
+	tft.print("Complete!");
+	Serial.println("\nAll characters displayed!");
+}
+
+void setup() {
+	Serial.begin(115200);
+  while (!Serial && (millis() <= 1000U))
+    { continue; }
+    tft.begin();
+    tft.setTextSize(1);
+    tft.setRotation(0);
+	// print all characters on the tft display, and it's corresponding character, wait for serial keypress every time bottom of the screen is reached
+
+	printAllCharacters();
+}
+
+void loop() {
+	delay(1000);
+}

@@ -5,7 +5,7 @@
 
 
 #define ERR_FAST_BLINK 50
-#define ERR_SLOW_BLINK 300
+#define ERR_SLOW_BLINK 400
 //-------------coses baud menu
 #define NUM_OPTIONS_BAUD_MENU 4
 #define SQUARE_W_BAUD_MENU (TFT_AMPLADA - 60) // wide but with margin

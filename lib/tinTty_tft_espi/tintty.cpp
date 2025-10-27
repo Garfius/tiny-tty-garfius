@@ -838,7 +838,7 @@ void _main(
 }
 void vTaskReadSerial()
 {
-	static uint32_t last_data_time = 0;
+	
 	bool data_received = false;
 
 	// Read all available data in one go for better performance
@@ -851,8 +851,10 @@ void vTaskReadSerial()
 	// Only update timestamp when new data arrives
 	if (data_received)
 	{
-		last_data_time = millis();
-		myCheesyFB.lastRemoteDataTime = last_data_time;
+		myCheesyFB.lastRemoteDataTime = millis();
+	}else
+	{
+		input_idle();
 	}
 
 	// Send output data if available

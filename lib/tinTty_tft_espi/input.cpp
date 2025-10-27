@@ -3,11 +3,6 @@
 #include "utils.h"
 #include "tintty.h"
 
-#define KEY_ROW_A_X(index) (0 + (KEY_WIDTH + KEY_GUTTER) * index)
-#define KEY_ROW_B_X(index) (20 + (KEY_WIDTH + KEY_GUTTER) * index)
-#define KEY_ROW_C_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
-#define KEY_ROW_D_X(index) (32 + (KEY_WIDTH + KEY_GUTTER) * index)
-#define ARROW_KEY_X(index) (TFT_AMPLADA - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
 
 #define KEYCODE_SHIFT -20
 #define KEYCODE_CAPS -21
@@ -16,25 +11,33 @@
 
 #define KEYCODE_INSERT// LLIGAR A: 285
 
-const int touchKeyRowCount = 6;
+const int touchKeyRowCount = KEYBOARD_ROWS; // @todo passar tot a preprocessor define
 
+// KEY_WIDTH 23
+#define KEY_ROW_A_X(index) (8 + (KEY_WIDTH + KEY_GUTTER) * index)
+#define KEY_ROW_B_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
+#define KEY_ROW_C_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
+#define KEY_ROW_D_X(index) (8 + (KEY_WIDTH + KEY_GUTTER) * index)
+
+#define KEY_ROW_E_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
+
+#define ARROW_KEY_X(index) (TFT_AMPLADA - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
 struct touchKey {
     int16_t x, width;
     int code, shiftCode;
     char label;
 };
-
 struct touchKeyRow {
     int16_t y;
     int keyCount;
     struct touchKey keys[14];
-} touchKeyRows[6] = {
+};touchKeyRow touchKeyRows[5] = {//INFO teclatNoH85 = ["[","]","\\","_","{","}","|","\""]
     {
-        KEY_ROW_A_Y,
-        13,
+        KEY_ROW_A_Y,// start y
+        13,// num tecles
         {
-            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '~', 0 },
-            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '!', 0 },
+            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '\e', 174 },
+            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '~', 0 },//<-- duplicat
             { KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0 },
             { KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0 },
             { KEY_ROW_A_X(4), KEY_WIDTH, '4', '$', 0 },
@@ -42,118 +45,95 @@ struct touchKeyRow {
             { KEY_ROW_A_X(6), KEY_WIDTH, '6', '^', 0 },
             { KEY_ROW_A_X(7), KEY_WIDTH, '7', '&', 0 },
             { KEY_ROW_A_X(8), KEY_WIDTH, '8', '*', 0 },
-            { KEY_ROW_A_X(9), KEY_WIDTH, '9', '(', 0 },
-            { KEY_ROW_A_X(10), KEY_WIDTH, '0', ')', 0 },
-            { KEY_ROW_A_X(11), KEY_WIDTH, '-', '_', 0 },
-            { KEY_ROW_A_X(12), TFT_AMPLADA - 1 - KEY_ROW_A_X(12), '=', '+', 0 }
+            { KEY_ROW_A_X(9), KEY_WIDTH, '9', '{', 0 },
+            { KEY_ROW_A_X(10), KEY_WIDTH, '0', '}', 0 },
+            { KEY_ROW_A_X(11), KEY_WIDTH, '(', '[', 0 },//'-', '_', 0 },
+            { KEY_ROW_A_X(12), TFT_AMPLADA - 1 - KEY_ROW_A_X(12), ')', ' ]', 0 }//'=', '+', 0 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 1,
         13,
         {
-            { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 8, 8, 27 },
-            { KEY_ROW_B_X(0), KEY_WIDTH, 9, 9, 26 },
-
+            { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 9, 9, 175 },
+            { KEY_ROW_B_X(0), KEY_WIDTH, '?', '*', 0 },//<-- duplicat
             { KEY_ROW_B_X(1), KEY_WIDTH, 'q', 'Q', 0 },
             { KEY_ROW_B_X(2), KEY_WIDTH, 'w', 'W', 0 },
+            
             { KEY_ROW_B_X(3), KEY_WIDTH, 'e', 'E', 0 },
             { KEY_ROW_B_X(4), KEY_WIDTH, 'r', 'R', 0 },
             { KEY_ROW_B_X(5), KEY_WIDTH, 't', 'T', 0 },
             { KEY_ROW_B_X(6), KEY_WIDTH, 'y', 'Y', 0 },
+            
             { KEY_ROW_B_X(7), KEY_WIDTH, 'u', 'U', 0 },
             { KEY_ROW_B_X(8), KEY_WIDTH, 'i', 'I', 0 },
             { KEY_ROW_B_X(9), KEY_WIDTH, 'o', 'O', 0 },
             { KEY_ROW_B_X(10), KEY_WIDTH, 'p', 'P', 0 },
-            { KEY_ROW_B_X(11), TFT_AMPLADA - 1 - KEY_ROW_B_X(11), '[', '{', 0 }
+            
+            { KEY_ROW_B_X(11), TFT_AMPLADA - 1 - KEY_ROW_B_X(11), 8, 8, 27 }
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 2,
         12,
         {
-            { 1, KEY_ROW_C_X(1) - 1 - KEY_GUTTER, ']', '}', 0 },
-            { KEY_ROW_C_X(1), KEY_WIDTH, '\\', '|', 0 },
-
-            {
-                KEY_ROW_C_X(2),
-                KEY_WIDTH,
-                KEYCODE_CAPS,
-                KEYCODE_CAPS,
-                18
-            },
-
-            { KEY_ROW_C_X(3), KEY_WIDTH, 'a', 'A', 0 },
-            { KEY_ROW_C_X(4), KEY_WIDTH, 's', 'S', 0 },
-            { KEY_ROW_C_X(5), KEY_WIDTH, 'd', 'D', 0 },
-            { KEY_ROW_C_X(6), KEY_WIDTH, 'f', 'F', 0 },
-            { KEY_ROW_C_X(7), KEY_WIDTH, 'g', 'G', 0 },
-            { KEY_ROW_C_X(8), KEY_WIDTH, 'h', 'H', 0 },
-            { KEY_ROW_C_X(9), KEY_WIDTH, 'j', 'J', 0 },
-            { KEY_ROW_C_X(10), KEY_WIDTH, 'k', 'K', 0 },
-            { KEY_ROW_C_X(11), TFT_AMPLADA - 1 - KEY_ROW_C_X(11), 'l', 'L', 0 }
+            { 1, KEY_ROW_C_X(0) - 1 - KEY_GUTTER, KEYCODE_CAPS,KEYCODE_CAPS, 18 },
+            { KEY_ROW_C_X(0), KEY_WIDTH, '!', '|', 0 },// <-- millora
+            { KEY_ROW_C_X(1), KEY_WIDTH, 'a', 'A', 0 },
+            { KEY_ROW_C_X(2), KEY_WIDTH, 's', 'S', 0 },
+            
+            { KEY_ROW_C_X(3), KEY_WIDTH, 'd', 'D', 0 },
+            { KEY_ROW_C_X(4), KEY_WIDTH, 'f', 'F', 0 },
+            { KEY_ROW_C_X(5), KEY_WIDTH, 'g', 'G', 0 },
+            { KEY_ROW_C_X(6), KEY_WIDTH, 'h', 'H', 0 },
+            
+            { KEY_ROW_C_X(7), KEY_WIDTH, 'j', 'J', 0 },
+            { KEY_ROW_C_X(8), KEY_WIDTH, 'k', 'K', 0 },
+            { KEY_ROW_C_X(9), KEY_WIDTH, 'l', 'L', 0 },
+            { KEY_ROW_C_X(10), TFT_AMPLADA - 1 - KEY_ROW_C_X(10), 13, 13, 16 },
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 3,
-        11,
+        13,
         {
-            { 1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, ';', ':', 0 },
+            { 1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, KEYCODE_SHIFT, KEYCODE_SHIFT, 24  },//':', ';', 0 
             { KEY_ROW_D_X(1), KEY_WIDTH, '\'', '"', 0 },
-            { KEY_ROW_D_X(2), KEY_WIDTH, 13, 13, 16 },
+            { KEY_ROW_D_X(2), KEY_WIDTH, '<', '>', 0 },
+            { KEY_ROW_D_X(3), KEY_WIDTH, 'z', 'Z', 0 },
 
-            {
-                KEY_ROW_D_X(3),
-                KEY_WIDTH,
-                KEYCODE_SHIFT,
-                KEYCODE_SHIFT,
-                24
-            },
+            { KEY_ROW_D_X(4), KEY_WIDTH, 'x', 'X', 0 },
+            { KEY_ROW_D_X(5), KEY_WIDTH, 'c', 'C', 0 },
+            { KEY_ROW_D_X(6), KEY_WIDTH, 'v', 'V', 0 },
+            { KEY_ROW_D_X(7), KEY_WIDTH, 'b', 'B', 0 },
 
-            { KEY_ROW_D_X(4), KEY_WIDTH, 'z', 'Z', 0 },
-            { KEY_ROW_D_X(5), KEY_WIDTH, 'x', 'X', 0 },
-            { KEY_ROW_D_X(6), KEY_WIDTH, 'c', 'C', 0 },
-            { KEY_ROW_D_X(7), KEY_WIDTH, 'v', 'V', 0 },
-            { KEY_ROW_D_X(8), KEY_WIDTH, 'b', 'B', 0 },
-            { KEY_ROW_D_X(9), KEY_WIDTH, 'n', 'N', 0 },
-            { KEY_ROW_D_X(10), TFT_AMPLADA - 1 - KEY_ROW_D_X(10), 'm', 'M', 0 }
+            { KEY_ROW_D_X(8), KEY_WIDTH, 'n', 'N', 0 },
+            { KEY_ROW_D_X(9), KEY_WIDTH, 'm', 'M', 0 },
+            { KEY_ROW_D_X(10), KEY_WIDTH, ',', '\\', 0 },
+            { KEY_ROW_D_X(11), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30 },// UP
+            
+            { KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), '.', '/', 0 },
+
         }
     },
     {
         KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
-        7,
+        9,
         {
-            { 1, KEY_WIDTH, ',', '<', 0 },
-            { 1 + (KEY_WIDTH + KEY_GUTTER), KEY_WIDTH, '.', '>', 0 },
-            { 1 + (KEY_WIDTH + KEY_GUTTER) * 2, KEY_WIDTH, '/', '?', 0 },
-
-            {
-                1 + (KEY_WIDTH + KEY_GUTTER) * 3,
-                KEY_WIDTH + KEY_GUTTER + KEY_WIDTH / 2,
-                KEYCODE_SHIFT,
-                KEYCODE_SHIFT,
-                24
-            },
-
-            {
-                1 + (KEY_WIDTH + KEY_GUTTER) * 3 + KEY_WIDTH + KEY_GUTTER + KEY_WIDTH / 2 + KEY_GUTTER,
-                KEY_WIDTH + KEY_WIDTH / 2,
-                KEYCODE_CONTROL,
-                KEYCODE_CONTROL,
-                'C'
-            },
-
-            { TFT_AMPLADA - 105 - KEY_GUTTER, 105, ' ', ' ', ' ' }
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 5,
-        4,
-        {
-            { ARROW_KEY_X(0), KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17 },
-            { ARROW_KEY_X(1), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30 },
-            { ARROW_KEY_X(2), KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31 },
-            { ARROW_KEY_X(3), KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16 }
+            { 1, KEY_ROW_E_X(0) - 1 - KEY_GUTTER, '+', '+', 0 },
+            { KEY_ROW_E_X(0) , KEY_WIDTH, '-', '-', 0 },
+            { KEY_ROW_E_X(1) , KEY_WIDTH, '=', '=', 0 },
+            { KEY_ROW_E_X(2) , KEY_WIDTH, ':', ';', 0 },
+            
+            { KEY_ROW_E_X(3) , (KEY_WIDTH*5)+12, ' ', ' ', 0 },
+            { KEY_ROW_E_X(8)+8 ,KEY_WIDTH, KEYCODE_CONTROL, KEYCODE_CONTROL, 'C'},
+            { KEY_ROW_E_X(9)+8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17 },// ESQ LEFT
+            { KEY_ROW_E_X(10)+8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31 },//DN
+            
+            { KEY_ROW_E_X(11)+8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16 }// RT
+            
+            
+            
         }
     }
 };
@@ -349,10 +329,15 @@ void input_idle() {// passar a lastTouch, permetre baixar
     #else
         if (TouchDetected && tft.getTouch(&xpos, &ypos,TOUCH_SENSIVITY)) {
     #endif
-            //getTouchDisplay(&xpos, &ypos);
-            /*tft.drawCircle(xpos,ypos,5,TFT_GREEN);
-            return;*/
-        ts.getTouch(&xpos,&ypos);
+    /*
+    //--------touch test Set----------
+    getTouchDisplay(&xpos, &ypos);
+    tft.drawCircle(xpos,ypos,5,TFT_GREEN);
+    return;
+    */
+            
+        if(!ts.getTouch(&xpos,&ypos))return;
+
         lastTouch = millis();
         if(!armed){
             nextPush = millis()+keyboardAutoRepeatMillis;
