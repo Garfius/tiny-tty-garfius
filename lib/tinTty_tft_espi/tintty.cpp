@@ -100,12 +100,16 @@ void eraseCursor(tintty_display *display)
 // Function to save the character at cursor position for restoration
 void saveCursorCharacter()
 {
-	// For now, we'll assume space character with current colors
-	// In a more complete implementation, you'd read from a character buffer
-	cursor_backup_data.character = ' ';
-	cursor_backup_data.fg_color = state.fg_ansi_color;
-	cursor_backup_data.bg_color = state.bg_ansi_color;
-	cursor_backup_data.valid = true;
+	// Only save if we don't already have valid backup data
+	// (backup data is updated when a character is rendered at cursor position)
+	if (!cursor_backup_data.valid)
+	{
+		// Assume space character with current colors at empty positions
+		cursor_backup_data.character = ' ';
+		cursor_backup_data.fg_color = state.fg_ansi_color;
+		cursor_backup_data.bg_color = state.bg_ansi_color;
+		cursor_backup_data.valid = true;
+	}
 }
 void _normalize_coordinates(tintty_display *display)
 {
@@ -250,17 +254,30 @@ void _render(tintty_display *display)
 			}
 		}
 
+		// Save character info before clearing for cursor restoration
+		char rendered_char = state.out_char;
+		int16_t rendered_char_col = state.out_char_col;
+		int16_t rendered_char_row = state.out_char_row;
+		uint16_t rendered_fg = state.fg_ansi_color;
+		uint16_t rendered_bg = state.bg_ansi_color;
+
 		// clear for next render
 		state.out_char = 0;
 		state.out_clear_before = 0;
 		state.out_clear_after = 0;
+
 		// the char draw may overpaint the cursor, in which case
 		// mark it for repaint
 		if (
-			rendered.cursor_col == state.out_char_col &&
-			rendered.cursor_row == state.out_char_row)
+			rendered.cursor_col == rendered_char_col &&
+			rendered.cursor_row == rendered_char_row)
 		{
 			rendered.cursor_col = -1;
+			// Update backup data with the character we just rendered
+			cursor_backup_data.character = rendered_char;
+			cursor_backup_data.fg_color = rendered_fg;
+			cursor_backup_data.bg_color = rendered_bg;
+			cursor_backup_data.valid = true;
 		}
 	}
 	//----------------------------------tractament de cursor inici----------------------------------
@@ -273,6 +290,8 @@ void _render(tintty_display *display)
 			rendered.cursor_row != state.cursor_row)
 		{
 			eraseCursor(display);
+			// Invalidate backup data since we're moving to a new position
+			cursor_backup_data.valid = false;
 		}
 	}
 
@@ -286,7 +305,7 @@ void _render(tintty_display *display)
 			return;
 		}
 
-		// Save what's currently at cursor position
+		// Save what's currently at cursor position (if not already saved by character rendering)
 		saveCursorCharacter();
 
 		// Draw cursor as character with white background
@@ -840,7 +859,7 @@ void _main(
 }
 void vTaskReadSerial()
 {
-	
+
 	bool data_received = false;
 
 	// Read all available data in one go for better performance
