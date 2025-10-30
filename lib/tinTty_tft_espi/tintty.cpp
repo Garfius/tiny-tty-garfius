@@ -852,9 +852,11 @@ void vTaskReadSerial()
 	if (data_received)
 	{
 		myCheesyFB.lastRemoteDataTime = millis();
-	}else
+	}else if(!myCheesyFB.outputting)
 	{
+		myCheesyFB.outputting = true;
 		input_idle();
+		myCheesyFB.outputting = false;
 	}
 
 	// Send output data if available
@@ -924,25 +926,5 @@ void tintty_run(
 }
 void tintty_idle(tintty_display *display)
 {
-	static uint8_t render_skip_counter = 0;
-
-	while (myCheesyFB.outputting)
-	{
 		vTaskReadSerial();
-	}
-	vTaskReadSerial();
-
-	// Only render if there are changes - no cursor blinking needed
-	bool should_render = myCheesyFB.hasChanges ||
-						 (render_skip_counter == 0);
-
-	if (should_render)
-	{
-		_render(display);
-		render_skip_counter = 0;
-	}
-	else
-	{
-		render_skip_counter = (render_skip_counter + 1) % RENDER_SKIP_CYCLES;
-	}
 }

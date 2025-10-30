@@ -3,13 +3,12 @@
 #include "utils.h"
 #include "tintty.h"
 
-
 #define KEYCODE_SHIFT -20
 #define KEYCODE_CAPS -21
 #define KEYCODE_CONTROL -22
 #define KEYCODE_ARROW_START -30 // from -30 to -27
 
-#define KEYCODE_INSERT// LLIGAR A: 285
+#define KEYCODE_INSERT // LLIGAR A: 285
 
 const int touchKeyRowCount = KEYBOARD_ROWS; // @todo passar tot a preprocessor define
 
@@ -22,121 +21,110 @@ const int touchKeyRowCount = KEYBOARD_ROWS; // @todo passar tot a preprocessor d
 #define KEY_ROW_E_X(index) (24 + (KEY_WIDTH + KEY_GUTTER) * index)
 
 #define ARROW_KEY_X(index) (TFT_AMPLADA - (KEY_WIDTH + KEY_GUTTER) * (4 - index))
-struct touchKey {
+struct touchKey
+{
     int16_t x, width;
     int code, shiftCode;
     char label;
 };
-struct touchKeyRow {
+struct touchKeyRow
+{
     int16_t y;
     int keyCount;
     struct touchKey keys[14];
-};touchKeyRow touchKeyRows[5] = {//INFO teclatNoH85 = ["[","]","\\","_","{","}","|","\""]
-    {
-        KEY_ROW_A_Y,// start y
-        13,// num tecles
-        {
-            { 1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '\e', 174 },
-            { KEY_ROW_A_X(1), KEY_WIDTH, '1', '~', 0 },//<-- duplicat
-            { KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0 },
-            { KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0 },
-            { KEY_ROW_A_X(4), KEY_WIDTH, '4', '$', 0 },
-            { KEY_ROW_A_X(5), KEY_WIDTH, '5', '%', 0 },
-            { KEY_ROW_A_X(6), KEY_WIDTH, '6', '^', 0 },
-            { KEY_ROW_A_X(7), KEY_WIDTH, '7', '&', 0 },
-            { KEY_ROW_A_X(8), KEY_WIDTH, '8', '*', 0 },
-            { KEY_ROW_A_X(9), KEY_WIDTH, '9', '{', 0 },
-            { KEY_ROW_A_X(10), KEY_WIDTH, '0', '}', 0 },
-            { KEY_ROW_A_X(11), KEY_WIDTH, '(', '[', 0 },//'-', '_', 0 },
-            { KEY_ROW_A_X(12), TFT_AMPLADA - 1 - KEY_ROW_A_X(12), ')', ' ]', 0 }//'=', '+', 0 }
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 1,
-        13,
-        {
-            { 1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 9, 9, 175 },
-            { KEY_ROW_B_X(0), KEY_WIDTH, '?', '*', 0 },//<-- duplicat
-            { KEY_ROW_B_X(1), KEY_WIDTH, 'q', 'Q', 0 },
-            { KEY_ROW_B_X(2), KEY_WIDTH, 'w', 'W', 0 },
-            
-            { KEY_ROW_B_X(3), KEY_WIDTH, 'e', 'E', 0 },
-            { KEY_ROW_B_X(4), KEY_WIDTH, 'r', 'R', 0 },
-            { KEY_ROW_B_X(5), KEY_WIDTH, 't', 'T', 0 },
-            { KEY_ROW_B_X(6), KEY_WIDTH, 'y', 'Y', 0 },
-            
-            { KEY_ROW_B_X(7), KEY_WIDTH, 'u', 'U', 0 },
-            { KEY_ROW_B_X(8), KEY_WIDTH, 'i', 'I', 0 },
-            { KEY_ROW_B_X(9), KEY_WIDTH, 'o', 'O', 0 },
-            { KEY_ROW_B_X(10), KEY_WIDTH, 'p', 'P', 0 },
-            
-            { KEY_ROW_B_X(11), TFT_AMPLADA - 1 - KEY_ROW_B_X(11), 8, 8, 27 }
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 2,
-        12,
-        {
-            { 1, KEY_ROW_C_X(0) - 1 - KEY_GUTTER, KEYCODE_CAPS,KEYCODE_CAPS, 18 },
-            { KEY_ROW_C_X(0), KEY_WIDTH, '!', '|', 0 },// <-- millora
-            { KEY_ROW_C_X(1), KEY_WIDTH, 'a', 'A', 0 },
-            { KEY_ROW_C_X(2), KEY_WIDTH, 's', 'S', 0 },
-            
-            { KEY_ROW_C_X(3), KEY_WIDTH, 'd', 'D', 0 },
-            { KEY_ROW_C_X(4), KEY_WIDTH, 'f', 'F', 0 },
-            { KEY_ROW_C_X(5), KEY_WIDTH, 'g', 'G', 0 },
-            { KEY_ROW_C_X(6), KEY_WIDTH, 'h', 'H', 0 },
-            
-            { KEY_ROW_C_X(7), KEY_WIDTH, 'j', 'J', 0 },
-            { KEY_ROW_C_X(8), KEY_WIDTH, 'k', 'K', 0 },
-            { KEY_ROW_C_X(9), KEY_WIDTH, 'l', 'L', 0 },
-            { KEY_ROW_C_X(10), TFT_AMPLADA - 1 - KEY_ROW_C_X(10), 13, 13, 16 },
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 3,
-        13,
-        {
-            { 1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, KEYCODE_SHIFT, KEYCODE_SHIFT, 24  },//':', ';', 0 
-            { KEY_ROW_D_X(1), KEY_WIDTH, '\'', '"', 0 },
-            { KEY_ROW_D_X(2), KEY_WIDTH, '<', '>', 0 },
-            { KEY_ROW_D_X(3), KEY_WIDTH, 'z', 'Z', 0 },
-
-            { KEY_ROW_D_X(4), KEY_WIDTH, 'x', 'X', 0 },
-            { KEY_ROW_D_X(5), KEY_WIDTH, 'c', 'C', 0 },
-            { KEY_ROW_D_X(6), KEY_WIDTH, 'v', 'V', 0 },
-            { KEY_ROW_D_X(7), KEY_WIDTH, 'b', 'B', 0 },
-
-            { KEY_ROW_D_X(8), KEY_WIDTH, 'n', 'N', 0 },
-            { KEY_ROW_D_X(9), KEY_WIDTH, 'm', 'M', 0 },
-            { KEY_ROW_D_X(10), KEY_WIDTH, ',', '\\', 0 },
-            { KEY_ROW_D_X(11), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30 },// UP
-            
-            { KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), '.', '/', 0 },
-
-        }
-    },
-    {
-        KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
-        9,
-        {
-            { 1, KEY_ROW_E_X(0) - 1 - KEY_GUTTER, '+', '+', 0 },
-            { KEY_ROW_E_X(0) , KEY_WIDTH, '-', '-', 0 },
-            { KEY_ROW_E_X(1) , KEY_WIDTH, '=', '=', 0 },
-            { KEY_ROW_E_X(2) , KEY_WIDTH, ':', ';', 0 },
-            
-            { KEY_ROW_E_X(3) , (KEY_WIDTH*5)+12, ' ', ' ', 0 },
-            { KEY_ROW_E_X(8)+8 ,KEY_WIDTH, KEYCODE_CONTROL, KEYCODE_CONTROL, 'C'},
-            { KEY_ROW_E_X(9)+8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17 },// ESQ LEFT
-            { KEY_ROW_E_X(10)+8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31 },//DN
-            
-            { KEY_ROW_E_X(11)+8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16 }// RT
-            
-            
-            
-        }
-    }
 };
+touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}","|","\""]
+    {
+        KEY_ROW_A_Y, // start y
+        13,          // num tecles
+        {
+            {1, KEY_ROW_A_X(1) - 1 - KEY_GUTTER, '\e', '\e', 174},
+            {KEY_ROW_A_X(1), KEY_WIDTH, '1', '~', 0}, //<-- duplicat
+            {KEY_ROW_A_X(2), KEY_WIDTH, '2', '@', 0},
+            {KEY_ROW_A_X(3), KEY_WIDTH, '3', '#', 0},
+            {KEY_ROW_A_X(4), KEY_WIDTH, '4', '$', 0},
+            {KEY_ROW_A_X(5), KEY_WIDTH, '5', '%', 0},
+            {KEY_ROW_A_X(6), KEY_WIDTH, '6', '^', 0},
+            {KEY_ROW_A_X(7), KEY_WIDTH, '7', '&', 0},
+            {KEY_ROW_A_X(8), KEY_WIDTH, '8', '*', 0},
+            {KEY_ROW_A_X(9), KEY_WIDTH, '9', '{', 0},
+            {KEY_ROW_A_X(10), KEY_WIDTH, '0', '}', 0},
+            {KEY_ROW_A_X(11), KEY_WIDTH, '(', '[', 0},                        //'-', '_', 0 },
+            {KEY_ROW_A_X(12), TFT_AMPLADA - 1 - KEY_ROW_A_X(12), ')', ']', 0} //'=', '+', 0 }
+        }},
+    {KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 1,
+     13,
+     {{1, (KEY_ROW_B_X(0) - KEY_GUTTER - 1), 9, 9, 175},
+      {KEY_ROW_B_X(0), KEY_WIDTH, '?', '*', 0}, //<-- duplicat
+      {KEY_ROW_B_X(1), KEY_WIDTH, 'q', 'Q', 0},
+      {KEY_ROW_B_X(2), KEY_WIDTH, 'w', 'W', 0},
+
+      {KEY_ROW_B_X(3), KEY_WIDTH, 'e', 'E', 0},
+      {KEY_ROW_B_X(4), KEY_WIDTH, 'r', 'R', 0},
+      {KEY_ROW_B_X(5), KEY_WIDTH, 't', 'T', 0},
+      {KEY_ROW_B_X(6), KEY_WIDTH, 'y', 'Y', 0},
+
+      {KEY_ROW_B_X(7), KEY_WIDTH, 'u', 'U', 0},
+      {KEY_ROW_B_X(8), KEY_WIDTH, 'i', 'I', 0},
+      {KEY_ROW_B_X(9), KEY_WIDTH, 'o', 'O', 0},
+      {KEY_ROW_B_X(10), KEY_WIDTH, 'p', 'P', 0},
+
+      {KEY_ROW_B_X(11), TFT_AMPLADA - 1 - KEY_ROW_B_X(11), 8, 8, 27}}},
+    {KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 2,
+     12,
+     {
+         {1, KEY_ROW_C_X(0) - 1 - KEY_GUTTER, KEYCODE_CAPS, KEYCODE_CAPS, 18},
+         {KEY_ROW_C_X(0), KEY_WIDTH, '!', '|', 0}, // <-- millora
+         {KEY_ROW_C_X(1), KEY_WIDTH, 'a', 'A', 0},
+         {KEY_ROW_C_X(2), KEY_WIDTH, 's', 'S', 0},
+
+         {KEY_ROW_C_X(3), KEY_WIDTH, 'd', 'D', 0},
+         {KEY_ROW_C_X(4), KEY_WIDTH, 'f', 'F', 0},
+         {KEY_ROW_C_X(5), KEY_WIDTH, 'g', 'G', 0},
+         {KEY_ROW_C_X(6), KEY_WIDTH, 'h', 'H', 0},
+
+         {KEY_ROW_C_X(7), KEY_WIDTH, 'j', 'J', 0},
+         {KEY_ROW_C_X(8), KEY_WIDTH, 'k', 'K', 0},
+         {KEY_ROW_C_X(9), KEY_WIDTH, 'l', 'L', 0},
+         {KEY_ROW_C_X(10), TFT_AMPLADA - 1 - KEY_ROW_C_X(10), 13, 13, 16},
+     }},
+    {KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 3,
+     13,
+     {
+         {1, KEY_ROW_D_X(1) - 1 - KEY_GUTTER, KEYCODE_SHIFT, KEYCODE_SHIFT, 24}, //':', ';', 0
+         {KEY_ROW_D_X(1), KEY_WIDTH, '\'', '"', 0},
+         {KEY_ROW_D_X(2), KEY_WIDTH, '<', '>', 0},
+         {KEY_ROW_D_X(3), KEY_WIDTH, 'z', 'Z', 0},
+
+         {KEY_ROW_D_X(4), KEY_WIDTH, 'x', 'X', 0},
+         {KEY_ROW_D_X(5), KEY_WIDTH, 'c', 'C', 0},
+         {KEY_ROW_D_X(6), KEY_WIDTH, 'v', 'V', 0},
+         {KEY_ROW_D_X(7), KEY_WIDTH, 'b', 'B', 0},
+
+         {KEY_ROW_D_X(8), KEY_WIDTH, 'n', 'N', 0},
+         {KEY_ROW_D_X(9), KEY_WIDTH, 'm', 'M', 0},
+         {KEY_ROW_D_X(10), KEY_WIDTH, ',', '\\', 0},
+         {KEY_ROW_D_X(11), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30}, // UP
+
+         {KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), '.', '/', 0},
+
+     }},
+    {KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
+     9,
+     {
+         {1, KEY_ROW_E_X(0) - 1 - KEY_GUTTER, '+', '+', 0},
+         {KEY_ROW_E_X(0), KEY_WIDTH, '-', '-', 0},
+         {KEY_ROW_E_X(1), KEY_WIDTH, '=', '=', 0},
+         {KEY_ROW_E_X(2), KEY_WIDTH, ':', ';', 0},
+
+         {KEY_ROW_E_X(3), (KEY_WIDTH * 5) + 12, ' ', ' ', 0},
+         {KEY_ROW_E_X(8) + 8, KEY_WIDTH, KEYCODE_CONTROL, KEYCODE_CONTROL, 'C'},
+         {KEY_ROW_E_X(9) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17},  // ESQ LEFT
+         {KEY_ROW_E_X(10) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31}, // DN
+
+         {KEY_ROW_E_X(11) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16} // RT
+
+     }}};
 
 struct touchKeyRow *activeRow = NULL;
 struct touchKey *activeKey = NULL;
@@ -144,33 +132,33 @@ bool shiftIsActive = false;
 bool shiftIsSticky = false;
 bool controlIsActive = false;
 
-void _input_set_mode(bool shift, bool shiftSticky, bool control) {
+void _input_set_mode(bool shift, bool shiftSticky, bool control)
+{
     // reset if current mode already matches
     if (
         shiftIsActive == shift &&
         shiftIsSticky == shiftSticky &&
-        controlIsActive == control
-    ) {
+        controlIsActive == control)
+    {
         shiftIsActive = false;
         shiftIsSticky = false;
         controlIsActive = false;
-    } else {
+    }
+    else
+    {
         shiftIsActive = shift;
         shiftIsSticky = shiftSticky;
         controlIsActive = control;
     }
 }
 
-void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key) {
+void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key)
+{
     const int16_t rowCY = keyRow->y;
-    const bool isActive = (
-        key == activeKey ||
-        (shiftIsActive && (
-            (key->code == KEYCODE_SHIFT && !shiftIsSticky) ||
-            (key->code == KEYCODE_CAPS && shiftIsSticky)
-        )) ||
-        (controlIsActive && key->code == KEYCODE_CONTROL)
-    );
+    const bool isActive = (key == activeKey ||
+                           (shiftIsActive && ((key->code == KEYCODE_SHIFT && !shiftIsSticky) ||
+                                              (key->code == KEYCODE_CAPS && shiftIsSticky))) ||
+                           (controlIsActive && key->code == KEYCODE_CONTROL));
 
     uint16_t keyColor = isActive ? 0xFFFF : 0;
     uint16_t borderColor = isActive ? 0xFFFF : tft.color565(0x80, 0x80, 0x80);
@@ -191,43 +179,51 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key) {
     tft.print(
         key->label == 0
             ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)
-            : key->label
-    );
+            : key->label);
 }
 
-void _input_draw_all_keys() {
-    for (int i = 0; i < touchKeyRowCount; i++) {
+void _input_draw_all_keys()
+{
+    for (int i = 0; i < touchKeyRowCount; i++)
+    {
         struct touchKeyRow *keyRow = &touchKeyRows[i];
         const int keyCount = keyRow->keyCount;
 
-        for (int j = 0; j < keyCount; j++) {
+        for (int j = 0; j < keyCount; j++)
+        {
             _input_draw_key(keyRow, &keyRow->keys[j]);
         }
     }
 }
 
-void _input_process_touch(int16_t xpos, int16_t ypos) {
+void _input_process_touch(int16_t xpos, int16_t ypos)
+{
     activeRow = NULL;
 
-    for (int i = 0; i < touchKeyRowCount; i++) {
+    for (int i = 0; i < touchKeyRowCount; i++)
+    {
         int rowCY = touchKeyRows[i].y;
 
-        if (ypos >= rowCY && ypos <= rowCY + KEY_HEIGHT) {
+        if (ypos >= rowCY && ypos <= rowCY + KEY_HEIGHT)
+        {
             activeRow = &touchKeyRows[i];
             break;
         }
     }
 
-    if (activeRow == NULL) {
+    if (activeRow == NULL)
+    {
         return;
     }
 
     const int keyCount = activeRow->keyCount;
 
-    for (int i = 0; i < keyCount; i++) {
+    for (int i = 0; i < keyCount; i++)
+    {
         struct touchKey *key = &activeRow->keys[i];
 
-        if (xpos < key->x || xpos > key->x + key->width) {
+        if (xpos < key->x || xpos > key->x + key->width)
+        {
             continue;
         }
 
@@ -236,32 +232,47 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
         break;
     }
 
-    if (activeKey) {
-        if (activeKey->code == KEYCODE_SHIFT) {
+    if (activeKey)
+    {
+        if (activeKey->code == KEYCODE_SHIFT)
+        {
             _input_set_mode(true, false, false);
             _input_draw_all_keys();
-        } else if (activeKey->code == KEYCODE_CAPS) {
+        }
+        else if (activeKey->code == KEYCODE_CAPS)
+        {
             _input_set_mode(true, true, false);
             _input_draw_all_keys();
-        } else if (activeKey->code == KEYCODE_CONTROL) {
+        }
+        else if (activeKey->code == KEYCODE_CONTROL)
+        {
             _input_set_mode(false, false, true);
             _input_draw_all_keys(); // redraw all, to clear previous mode
-        } else {
+        }
+        else
+        {
             _input_draw_key(activeRow, activeKey);
 
-            if (shiftIsActive) {
+            if (shiftIsActive)
+            {
                 bufferoUT.addChar((char)activeKey->shiftCode);
 
                 // clear back to lowercase unless caps-lock
-                if (!shiftIsSticky) {
+                if (!shiftIsSticky)
+                {
                     _input_set_mode(false, false, false);
                     _input_draw_all_keys();
                 }
-            } else if (controlIsActive) {
-                if (activeKey->code >= 97 && activeKey->code <= 122) {
+            }
+            else if (controlIsActive)
+            {
+                if (activeKey->code >= 97 && activeKey->code <= 122)
+                {
                     // alpha control keys
                     bufferoUT.addChar((char)(activeKey->code - 96));
-                } else if (activeKey->code >= 91 && activeKey->code <= 93) {
+                }
+                else if (activeKey->code >= 91 && activeKey->code <= 93)
+                {
                     // [, / and ] control keys
                     // @todo other stragglers
                     bufferoUT.addChar((char)(activeKey->code - 91 + 27));
@@ -270,18 +281,23 @@ void _input_process_touch(int16_t xpos, int16_t ypos) {
                 // always clear back to normal
                 _input_set_mode(false, false, false);
                 _input_draw_all_keys();
-            } else if (activeKey->code >= KEYCODE_ARROW_START && activeKey->code < KEYCODE_ARROW_START + 4) {
-                bufferoUT.addChar((char)27); // Esc
+            }
+            else if (activeKey->code >= KEYCODE_ARROW_START && activeKey->code < KEYCODE_ARROW_START + 4)
+            {
+                bufferoUT.addChar((char)27);                                       // Esc
                 bufferoUT.addChar(tintty_cursor_key_mode_application ? 'O' : '['); // different code depending on terminal state
                 bufferoUT.addChar((char)(activeKey->code - KEYCODE_ARROW_START + 'A'));
-            } else {// #define KEYCODE_INSERT LLIGAR A: 14
+            }
+            else
+            { // #define KEYCODE_INSERT LLIGAR A: 14
                 bufferoUT.addChar((char)activeKey->code);
             }
         }
     }
 }
 
-void _input_process_release() {
+void _input_process_release()
+{
     struct touchKeyRow *releasedKeyRow = activeRow;
     struct touchKey *releasedKey = activeKey;
 
@@ -293,12 +309,14 @@ void _input_process_release() {
 
 bool TouchDetected = false;
 
-void touchDetected(){
+void touchDetected()
+{
     TouchDetected = !digitalRead(TOUCH_IRQ);
 }
 
-void input_init(){
-    //checkDoCalibration();
+void input_init()
+{
+    // checkDoCalibration();
 
     uint16_t bgColor = tft.color565(0x20, 0x20, 0x20);
 
@@ -313,7 +331,7 @@ void input_init(){
     attachInterrupt(digitalPinToInterrupt(TOUCH_IRQ), touchDetected, CHANGE);
 }
 
-uint16_t xpos,ypos;
+uint16_t xpos, ypos;
 
 bool armed = false;
 unsigned int nextPush = 0;
@@ -322,40 +340,49 @@ unsigned int lastTouch = 0;
 /**
  * tarda keyboardReleaseMillis a donar per aixecat el boli
  * keyboardAutoRepeatMillis
-*/
-void input_idle() {// passar a lastTouch, permetre baixar
-    #ifdef touchNoEspi
-        if (TouchDetected && ts.isTouching()) {
-    #else
-        if (TouchDetected && tft.getTouch(&xpos, &ypos,TOUCH_SENSIVITY)) {
-    #endif
-    /*
-    //--------touch test Set----------
-    getTouchDisplay(&xpos, &ypos);
-    tft.drawCircle(xpos,ypos,5,TFT_GREEN);
-    return;
-    */
-            
-        if(!ts.getTouch(&xpos,&ypos))return;
-
+ */
+void input_idle()
+{ // passar a lastTouch, permetre baixar
+#ifdef touchNoEspi
+    if (TouchDetected && ts.isTouching())
+#else
+    if (TouchDetected && tft.getTouch(&xpos, &ypos, TOUCH_SENSIVITY))
+#endif
+    {
+        /* //--------touch test Set----------
+        getTouchDisplay(&xpos, &ypos);        tft.drawCircle(xpos,ypos,5,TFT_GREEN);        return;
+        */
+        if (!ts.getTouch(&xpos, &ypos))
+            return;
+        
         lastTouch = millis();
-        if(!armed){
-            nextPush = millis()+keyboardAutoRepeatMillis;
+        if (!armed)
+        {
+            nextPush = millis() + keyboardAutoRepeatMillis;
             armed = true;
             _input_process_touch(xpos, ypos);
-        }else{
-            if(millis() > nextPush){
-                nextPush = millis()+keyboardAutoRepeatMillis;
+        }
+        else
+        {
+            if (millis() > nextPush)
+            {
+                nextPush = millis() + keyboardAutoRepeatMillis;
                 _input_process_release();
                 _input_process_touch(xpos, ypos);
             }
         }
-    }else if(armed && (millis()>(lastTouch+keyboardReleaseMillis))){// si no esta tocant, netejar
+        
+    }
+    else if (armed && (millis() > (lastTouch + keyboardReleaseMillis)))
+    { // si no esta tocant, netejar
+        
         _input_process_release();
         armed = false;
+        
     }
 }
 
+
 Stream *userTty;
 TFT_eSPI tft = TFT_eSPI();
-TFT_eSprite spr= TFT_eSprite(&tft);
+TFT_eSprite spr = TFT_eSprite(&tft);

@@ -13,6 +13,8 @@
  * Original reference: VT100 emulation code written by Martin K. Schroeder
  * and modified by Peter Scargill.
  *
+ * sudo agetty 57600 ttyS21
+ * 
  * to-do:
  *  Test on the original ILI9341
  *  Port back to AVR if possible
@@ -31,7 +33,7 @@
  *	SDI		MOSI0		19
  *	D/C					2 (TFT_eSPI\User_Setup.h)TFT_DC
  *	RESET				3 (TFT_eSPI\User_Setup.h)TFT_RST
- *	CS		CS0			15 (TFT_eSPI\User_Setup.h)TFT_CS
+ *	CS		CS0			17 (TFT_eSPI\User_Setup.h)TFT_CS
  *	GND		GND 0V
  *	VCC		5V
  */
@@ -63,6 +65,7 @@ tintty_display ili9341_display = {						  // from serial to display from ~236 ti
 // unsigned static int lastRefresh;
 void refreshDisplayIfNeeded()
 {
+	if(myCheesyFB.outputting)return;
 	static uint32_t last_check = 0;
 	uint32_t current_time = millis();
 
@@ -110,8 +113,7 @@ void parseToBuffer()
 
 				// if (userTty->available() > 0)             return (char)userTty->peek(); // Safe to read
 
-				if (buffer.head != buffer.tail)
-					return buffer.myCharBuffer[buffer.head];
+				if (buffer.head != buffer.tail)return buffer.myCharBuffer[buffer.head];
 				tintty_idle(&ili9341_display); // render if needed
 
 				// input_idle();// aqui colisiona mutex
@@ -123,9 +125,8 @@ void parseToBuffer()
 			{ // read char
 				// bufferAtoB();
 				// if (userTty->available() > 0) return (char)userTty->read(); // Safe to read
+				if (buffer.head != buffer.tail)return buffer.consumeChar();
 				tintty_idle(&ili9341_display);
-				if (buffer.head != buffer.tail)
-					return buffer.consumeChar();
 
 				// input_idle();// aqui colisiona mutex
 			}
@@ -176,7 +177,7 @@ void setup()
 	tft.begin();
 	tft.setFreeFont(GLCD);
 	tft.setTextSize(1);
-	tft.setRotation(0);
+	tft.setRotation(2);
 	gpio_pull_up(2); // ensure pull-up for receiving wire
 
 	userTty = &Serial1; // assign receiving serial port
