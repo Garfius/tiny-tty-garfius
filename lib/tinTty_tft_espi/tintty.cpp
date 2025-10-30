@@ -335,7 +335,7 @@ void _send_sequence(
 	}
 }
 
-char _read_decimal(
+uint16_t _read_decimal(
 	char (*peek_char)(),
 	char (*read_char)())
 {
@@ -462,6 +462,8 @@ void _exec_escape_question_command(
 		// cursor visibility
 		state.cursor_hidden = !mode_on;
 		break;
+	  default:
+	  break;
 	}
 }
 
