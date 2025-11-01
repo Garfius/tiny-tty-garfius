@@ -63,43 +63,6 @@ tintty_display ili9341_display = {						  // from serial to display from ~236 ti
 // buffer to test various input sequences
 // passa el tros indicat a;
 // unsigned static int lastRefresh;
-void refreshDisplayIfNeeded()
-{
-	if(myCheesyFB.outputting)return;
-	static uint32_t last_check = 0;
-	uint32_t current_time = millis();
-
-	// Skip frequent checks - only check every few milliseconds
-	if (current_time - last_check < 10)
-	{
-		return;
-	}
-	last_check = current_time;
-
-	if (myCheesyFB.hasChanges)
-	{
-		if (current_time > (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))
-		{
-			// Mark as outputting to prevent conflicts
-			myCheesyFB.outputting = true;
-
-			// Only push the changed region for better performance
-			uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
-			uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
-
-			if (width > 0 && height > 0)
-			{
-				spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
-							   myCheesyFB.minX, myCheesyFB.minY, width, height);
-			}
-
-			myCheesyFB.outputting = false;
-			myCheesyFB.hasChanges = false;
-			myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
-		}
-	}
-	
-}
 void parseToBuffer()
 {
 
@@ -142,7 +105,7 @@ void loop1()
 {
 	refreshDisplayIfNeeded();
 	// Reduced delay for faster response - use yield instead of delay when possible
-	yield();
+	
 }
 /*TaskHandle_t xHandle;
 TaskHandle_t xHandle1;*/

@@ -66,51 +66,14 @@ struct tintty_rendered
 };
 static tintty_rendered rendered;
 
-// Store cursor character and colors for restoration
-struct cursor_backup
+// Track cursor position for direct TFT rendering
+struct tft_cursor_state
 {
-	char character;
-	uint16_t fg_color;
-	uint16_t bg_color;
-	bool valid;
-} cursor_backup_data = {' ', 7, 0, false};
+	int16_t col, row;
+	int16_t top_row;
+	bool drawn;
+} tft_cursor = {-1, -1, 0, false};
 
-void eraseCursor(tintty_display *display)
-{
-	if (cursor_backup_data.valid && rendered.cursor_col >= 0 && rendered.cursor_row >= 0)
-	{
-		if (static_cast<unsigned long long>(rendered.cursor_row) * CHAR_HEIGHT > UINT16_MAX)
-			giveErrorVisibility(3, 1);
-
-		// Restore the original character with its colors
-		const uint16_t x = rendered.cursor_col * CHAR_WIDTH;
-		const uint16_t y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height;
-
-		spr.setCursor(x, y);
-		spr.setTextColor(myPalette[cursor_backup_data.fg_color], myPalette[cursor_backup_data.bg_color]);
-		spr.write(cursor_backup_data.character);
-
-		assureRefreshArea(x, y, CHAR_WIDTH, CHAR_HEIGHT);
-		cursor_backup_data.valid = false;
-	}
-	// record the fact that cursor is not on screen
-	rendered.cursor_col = -1;
-}
-
-// Function to save the character at cursor position for restoration
-void saveCursorCharacter()
-{
-	// Only save if we don't already have valid backup data
-	// (backup data is updated when a character is rendered at cursor position)
-	if (!cursor_backup_data.valid)
-	{
-		// Assume space character with current colors at empty positions
-		cursor_backup_data.character = ' ';
-		cursor_backup_data.fg_color = state.fg_ansi_color;
-		cursor_backup_data.bg_color = state.bg_ansi_color;
-		cursor_backup_data.valid = true;
-	}
-}
 void _normalize_coordinates(tintty_display *display)
 {
 	// Calculate safe maximum row to prevent overflow - more conservative approach
@@ -254,75 +217,27 @@ void _render(tintty_display *display)
 			}
 		}
 
-		// Save character info before clearing for cursor restoration
-		char rendered_char = state.out_char;
-		int16_t rendered_char_col = state.out_char_col;
-		int16_t rendered_char_row = state.out_char_row;
-		uint16_t rendered_fg = state.fg_ansi_color;
-		uint16_t rendered_bg = state.bg_ansi_color;
-
 		// clear for next render
 		state.out_char = 0;
 		state.out_clear_before = 0;
 		state.out_clear_after = 0;
 
-		// the char draw may overpaint the cursor, in which case
-		// mark it for repaint
+		// the char draw may overpaint the cursor position
+		// mark cursor state to be redrawn in refreshDisplayIfNeeded
 		if (
-			rendered.cursor_col == rendered_char_col &&
-			rendered.cursor_row == rendered_char_row)
+			rendered.cursor_col == state.out_char_col &&
+			rendered.cursor_row == state.out_char_row)
 		{
 			rendered.cursor_col = -1;
-			// Update backup data with the character we just rendered
-			cursor_backup_data.character = rendered_char;
-			cursor_backup_data.fg_color = rendered_fg;
-			cursor_backup_data.bg_color = rendered_bg;
-			cursor_backup_data.valid = true;
 		}
 	}
 	//----------------------------------tractament de cursor inici----------------------------------
-	// White background cursor (always visible, no blinking)
+	// Cursor will be drawn directly on TFT in refreshDisplayIfNeeded
+	// Here we just track the state change
 
-	// clear existing rendered cursor if position changed or if we need to refresh
-	if (rendered.cursor_col >= 0)
-	{
-		if (rendered.cursor_col != state.cursor_col ||
-			rendered.cursor_row != state.cursor_row)
-		{
-			eraseCursor(display);
-			// Invalidate backup data since we're moving to a new position
-			cursor_backup_data.valid = false;
-		}
-	}
-
-	// render new cursor if not already shown and cursor is not hidden
-	if (rendered.cursor_col < 0 && !state.cursor_hidden)
-	{
-		if (static_cast<unsigned long long>(state.cursor_row) * CHAR_HEIGHT > UINT16_MAX)
-		{
-			// Coordinates should have been normalized, but if we still hit overflow,
-			// skip cursor rendering for this frame
-			return;
-		}
-
-		// Save what's currently at cursor position (if not already saved by character rendering)
-		saveCursorCharacter();
-
-		// Draw cursor as character with white background
-		const uint16_t x = state.cursor_col * CHAR_WIDTH;
-		const uint16_t y = ((state.cursor_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height;
-
-		spr.setCursor(x, y);
-		// Use black text on white background for cursor
-		spr.setTextColor(myPalette[0], myPalette[7]); // Black text on white background
-		spr.write(cursor_backup_data.character);
-
-		assureRefreshArea(x, y, CHAR_WIDTH, CHAR_HEIGHT);
-
-		// save new rendered state
-		rendered.cursor_col = state.cursor_col;
-		rendered.cursor_row = state.cursor_row;
-	}
+	// Update rendered cursor position tracking
+	rendered.cursor_col = state.cursor_col;
+	rendered.cursor_row = state.cursor_row;
 	//----------------------------------tractament de cursor fi----------------------------------
 }
 
@@ -948,4 +863,117 @@ void tintty_run(
 void tintty_idle(tintty_display *display)
 {
 		vTaskReadSerial();
+}
+void refreshDisplayIfNeeded()
+{
+	while(true){
+
+		if(myCheesyFB.outputting)return;
+		static uint32_t last_check = 0;
+		uint32_t current_time = millis();
+
+		// Skip frequent checks - only check every few milliseconds
+		if (current_time - last_check < 10)
+		{
+			return;
+		}
+		last_check = current_time;
+
+		bool sprite_refreshed = false;
+		if (myCheesyFB.hasChanges)
+		{
+			if (current_time > (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))
+			{
+				// Mark as outputting to prevent conflicts
+				myCheesyFB.outputting = true;
+
+				// Only push the changed region for better performance
+				uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
+				uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
+
+				if (width > 0 && height > 0)
+				{
+					// Check if old cursor position is in the refresh area - it will be overwritten
+					if (tft_cursor.drawn)
+					{
+						const uint16_t old_cursor_x = tft_cursor.col * CHAR_WIDTH;
+						const uint16_t old_cursor_y = ((tft_cursor.row - tft_cursor.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+
+						if (old_cursor_x >= myCheesyFB.minX && old_cursor_x < myCheesyFB.maxX &&
+							old_cursor_y >= myCheesyFB.minY && old_cursor_y < myCheesyFB.maxY)
+						{
+							tft_cursor.drawn = false; // Will be overwritten by sprite push
+						}
+					}
+
+					spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
+								myCheesyFB.minX, myCheesyFB.minY, width, height);
+					sprite_refreshed = true;
+				}
+
+				myCheesyFB.outputting = false;
+				myCheesyFB.hasChanges = false;
+				myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
+			}
+		}
+
+		// Update cursor on TFT if needed (after sprite refresh or on cursor movement)
+		// Check if cursor position has changed or needs redrawing
+		bool cursor_needs_update = !state.cursor_hidden &&
+			(!tft_cursor.drawn ||
+			 tft_cursor.col != rendered.cursor_col ||
+			 tft_cursor.row != rendered.cursor_row ||
+			 tft_cursor.top_row != rendered.top_row);
+
+		bool cursor_needs_hide = state.cursor_hidden && tft_cursor.drawn;
+
+		if (cursor_needs_update || cursor_needs_hide)
+		{
+			if (!myCheesyFB.outputting) // Ensure we're not conflicting with sprite rendering
+			{
+				myCheesyFB.outputting = true;
+
+				if (cursor_needs_update)
+				{
+					// Draw cursor directly on TFT
+					const uint16_t cursor_x = rendered.cursor_col * CHAR_WIDTH;
+					const uint16_t cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+
+					// Erase old cursor if it was drawn and position changed
+					if (tft_cursor.drawn &&
+						(tft_cursor.col != rendered.cursor_col ||
+						 tft_cursor.row != rendered.cursor_row ||
+						 tft_cursor.top_row != rendered.top_row))
+					{
+						// Restore from sprite at old cursor position
+						const uint16_t old_cursor_x = tft_cursor.col * CHAR_WIDTH;
+						const uint16_t old_cursor_y = ((tft_cursor.row - tft_cursor.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+						spr.pushSprite(old_cursor_x, old_cursor_y, old_cursor_x, old_cursor_y, CHAR_WIDTH, CHAR_HEIGHT);
+					}
+
+					// Draw new cursor directly on TFT with white background
+					tft.fillRect(cursor_x, cursor_y, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
+
+					// Update cursor state
+					tft_cursor.col = rendered.cursor_col;
+					tft_cursor.row = rendered.cursor_row;
+					tft_cursor.top_row = rendered.top_row;
+					tft_cursor.drawn = true;
+				}
+				else if (cursor_needs_hide)
+				{
+					// Cursor is hidden - erase it
+					const uint16_t old_cursor_x = tft_cursor.col * CHAR_WIDTH;
+					const uint16_t old_cursor_y = ((tft_cursor.row - tft_cursor.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+					spr.pushSprite(old_cursor_x, old_cursor_y, old_cursor_x, old_cursor_y, CHAR_WIDTH, CHAR_HEIGHT);
+					tft_cursor.drawn = false;
+				}
+
+				myCheesyFB.outputting = false;
+			}
+		}
+
+		yield();
+	}
+
 }
