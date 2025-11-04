@@ -214,14 +214,6 @@ void _render(tintty_display *display)
 		state.out_clear_before = 0;
 		state.out_clear_after = 0;
 
-		// the char draw may overpaint the cursor position
-		// mark cursor state to be redrawn in refreshDisplayIfNeeded
-		if (
-			rendered.cursor_col == state.out_char_col &&
-			rendered.cursor_row == state.out_char_row)
-		{
-			rendered.cursor_col = -1;
-		}
 	}
 }
 
@@ -852,51 +844,67 @@ void tintty_idle(tintty_display *display)
 void refreshDisplayIfNeeded()
 {
 	uint32_t current_time = millis();
+	bool calPosarCursor;
+	uint16_t x1;
+	uint16_t y1;
+	uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
 	while (true)
 	{
 		yield();
 		current_time = millis();
-		if (!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit)))
+		calPosarCursor = (state.cursor_row >0) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
+		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) || !((calPosarCursor && !state.cursor_hidden) && (current_time > (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
-
+		
+		if(calPosarCursor && !state.cursor_hidden){
+			x1 = state.cursor_col * CHAR_WIDTH;
+			y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+			const uint16_t x2 = rendered.cursor_col * CHAR_WIDTH;
+			const uint16_t y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+			int16_t minX = min(x1, x2);
+			int16_t minY = min(y1, y2);
+			int16_t maxX = max(x1, x2);
+			int16_t maxY = max(y1, y2);
+			/*
+			int16_t width = maxX - minX;
+			int16_t height = maxY - minY;
+			*/
+			assureRefreshArea(minX, minY, (maxX - minX)+CHAR_WIDTH, (maxY - minY)+CHAR_HEIGHT);
+			calPosarCursor = true;
+		}
+		
 		uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
 		uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
 
 		if (width < 1 || height < 1)
 			continue;
 
-		bool calPosarCursor = !state.cursor_hidden && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
-
 		myCheesyFB.outputting = true;
 
 		// Only push the changed region for better performance
 		const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
 		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-		// check if old cursor is inside the updated area
-		if (!calPosarCursor && (old_cursor_x >= myCheesyFB.minX && old_cursor_x < myCheesyFB.maxX &&
-								old_cursor_y >= myCheesyFB.minY && old_cursor_y < myCheesyFB.maxY))
-		{
-			calPosarCursor = true;
-		}
 
 		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
 					   myCheesyFB.minX, myCheesyFB.minY, width, height);
 
 		// posar cursor si cal
-		if (calPosarCursor)
+		if (calPosarCursor && !state.cursor_hidden)
 		{
-			uint16_t w = CHAR_WIDTH, h = CHAR_HEIGHT;
-			uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
-
+			
 			// Draw cursor directly on TFT
+			/*
+			uint16_t w = CHAR_WIDTH;
+			uint16_t h = CHAR_HEIGHT;
 			const uint16_t cursor_x = state.cursor_col * CHAR_WIDTH;
 			const uint16_t cursor_y = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			tft.readRect(cursor_x, cursor_y, w, h, buf);
-			for (int i = 0; i < w * h; ++i)
+			*/
+			tft.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
+			for (int i = 0; i < CHAR_WIDTH * CHAR_HEIGHT; ++i)
 			{
 				buf[i] = ~buf[i];
 			}
-			tft.pushImage(cursor_x, cursor_y, w, h, buf);
+			tft.pushImage(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
 
 			// Draw new cursor directly on TFT with white background
 			// tft.fillRect(cursor_x, cursor_y, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
