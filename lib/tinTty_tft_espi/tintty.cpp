@@ -442,7 +442,7 @@ void _exec_escape_bracket_command_with_args(
 										? (display->screen_row_count - 1 - rel_row) * display->screen_col_count + (display->screen_col_count - 1 - state.cursor_col)
 										: 0;
 		}
-
+		assureRefreshArea(0, 0, TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
 		break;
 
 	case 'K':
@@ -457,7 +457,9 @@ void _exec_escape_bracket_command_with_args(
 		state.out_clear_after = ARG(0, 0) != 1
 									? display->screen_col_count - 1 - state.cursor_col
 									: 0;
-
+		x1 = state.cursor_col * CHAR_WIDTH;
+		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+		assureRefreshArea()
 		break;
 
 	case 'm':
@@ -473,6 +475,10 @@ void _exec_escape_bracket_command_with_args(
 	case 'l':
 		// unset mode
 		_apply_mode_setting(false, arg_list, arg_count);
+		break;
+	case 'P':
+		// Delete the indicated # of characters on current line.
+		assureRefreshArea()
 		break;
 	}
 }
@@ -637,6 +643,7 @@ void _exec_escape_code(
 
 	default:
 		// unrecognized character, silently ignore
+		int aa = 3;
 		break;
 	}
 }
@@ -852,8 +859,9 @@ void refreshDisplayIfNeeded()
 	{
 		yield();
 		current_time = millis();
-		calPosarCursor = (state.cursor_row >0) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
-		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) || !((calPosarCursor && !state.cursor_hidden) && (current_time > (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
+		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
+		
+		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
 		
 		if(calPosarCursor && !state.cursor_hidden){
@@ -882,8 +890,8 @@ void refreshDisplayIfNeeded()
 		myCheesyFB.outputting = true;
 
 		// Only push the changed region for better performance
-		const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
-		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+		/*const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
+		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);*/
 
 		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
 					   myCheesyFB.minX, myCheesyFB.minY, width, height);
@@ -899,7 +907,7 @@ void refreshDisplayIfNeeded()
 			const uint16_t cursor_x = state.cursor_col * CHAR_WIDTH;
 			const uint16_t cursor_y = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
 			*/
-			tft.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
+			spr.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
 			for (int i = 0; i < CHAR_WIDTH * CHAR_HEIGHT; ++i)
 			{
 				buf[i] = ~buf[i];
