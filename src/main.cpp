@@ -13,7 +13,7 @@
  * Original reference: VT100 emulation code written by Martin K. Schroeder
  * and modified by Peter Scargill.
  *
- * sudo agetty 57600 ttyS21
+ * sudo agetty 57600 ttyS21 -8ahn 
  * 
  * to-do:
  *  Test on the original ILI9341

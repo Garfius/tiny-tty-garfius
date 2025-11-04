@@ -223,14 +223,6 @@ void _render(tintty_display *display)
 			rendered.cursor_col = -1;
 		}
 	}
-	//----------------------------------tractament de cursor inici----------------------------------
-	// Cursor will be drawn directly on TFT in refreshDisplayIfNeeded
-	// Here we just track the state change
-
-	// Update rendered cursor position tracking
-	rendered.cursor_col = state.cursor_col;
-	rendered.cursor_row = state.cursor_row;
-	//----------------------------------tractament de cursor fi----------------------------------
 }
 
 void _ensure_cursor_vscroll(tintty_display *display)
@@ -864,13 +856,9 @@ void refreshDisplayIfNeeded()
 	{
 		yield();
 		current_time = millis();
-		if (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))
+		if (!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit)))
 			continue;
 
-		if (myCheesyFB.outputting)
-			continue;
-
-		// Skip frequent checks - only check every few milliseconds
 		uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
 		uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
 
@@ -879,48 +867,43 @@ void refreshDisplayIfNeeded()
 
 		bool calPosarCursor = !state.cursor_hidden && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
 
-		if (myCheesyFB.hasChanges)
+		myCheesyFB.outputting = true;
+
+		// Only push the changed region for better performance
+		const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
+		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+		// check if old cursor is inside the updated area
+		if (!calPosarCursor && (old_cursor_x >= myCheesyFB.minX && old_cursor_x < myCheesyFB.maxX &&
+								old_cursor_y >= myCheesyFB.minY && old_cursor_y < myCheesyFB.maxY))
 		{
-
-			// Mark as outputting to prevent conflicts
-			myCheesyFB.outputting = true;
-
-			// Only push the changed region for better performance
-
-			const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
-			const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			// check if old cursor is inside the updated area
-			if (!calPosarCursor && (old_cursor_x >= myCheesyFB.minX && (old_cursor_x + CHAR_WIDTH) < myCheesyFB.maxX &&
-									old_cursor_y >= myCheesyFB.minY && (old_cursor_y + CHAR_HEIGHT) < myCheesyFB.maxY))
-			{
-				calPosarCursor = true;
-			}
-
-			spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
-						   myCheesyFB.minX, myCheesyFB.minY, width, height);
-
-			// posar cursor si cal
-			if (calPosarCursor)
-			{
-				uint16_t w = CHAR_WIDTH, h = CHAR_HEIGHT;
-				uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
-
-				// Draw cursor directly on TFT
-				const uint16_t cursor_x = rendered.cursor_col * CHAR_WIDTH;
-				const uint16_t cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-				tft.readRect(cursor_x, cursor_y, w, h, buf);
-				for (int i = 0; i < w * h; ++i)
-				{
-					buf[i] = ~buf[i];
-				}
-				tft.pushImage(cursor_x, cursor_y, w, h, buf);
-				// Draw new cursor directly on TFT with white background
-				// tft.fillRect(cursor_x, cursor_y, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
-
-				rendered.cursor_col = state.cursor_col;
-				rendered.cursor_row = state.cursor_row;
-			}
-			myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
+			calPosarCursor = true;
 		}
+
+		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
+					   myCheesyFB.minX, myCheesyFB.minY, width, height);
+
+		// posar cursor si cal
+		if (calPosarCursor)
+		{
+			uint16_t w = CHAR_WIDTH, h = CHAR_HEIGHT;
+			uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
+
+			// Draw cursor directly on TFT
+			const uint16_t cursor_x = state.cursor_col * CHAR_WIDTH;
+			const uint16_t cursor_y = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+			tft.readRect(cursor_x, cursor_y, w, h, buf);
+			for (int i = 0; i < w * h; ++i)
+			{
+				buf[i] = ~buf[i];
+			}
+			tft.pushImage(cursor_x, cursor_y, w, h, buf);
+
+			// Draw new cursor directly on TFT with white background
+			// tft.fillRect(cursor_x, cursor_y, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
+
+			rendered.cursor_col = state.cursor_col;
+			rendered.cursor_row = state.cursor_row;
+		}
+		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
 	}
 }

@@ -316,11 +316,8 @@ void touchDetected()
 
 void input_init()
 {
-    // checkDoCalibration();
-
-    uint16_t bgColor = tft.color565(0x20, 0x20, 0x20);
-
-    tft.fillRect(0, TFT_ALSSADA - KEYBOARD_HEIGHT, TFT_AMPLADA, KEYBOARD_HEIGHT, bgColor);
+    
+    tft.fillRect(0, TFT_ALSSADA - KEYBOARD_HEIGHT, TFT_AMPLADA, KEYBOARD_HEIGHT, TFT_BLACK);
 
     tft.setTextSize(1);
 
