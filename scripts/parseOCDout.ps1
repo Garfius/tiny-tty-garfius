@@ -1,5 +1,8 @@
 <#
 Comanda al Open On-Chip Debugger OCD: x/400bx myCharBuffer
+info break
+delete
+delete 2
 #>
 $linies = [System.IO.File]::ReadAllLines("scripts\ocd.dump")
 $resultat = @()

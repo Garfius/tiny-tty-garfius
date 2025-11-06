@@ -126,9 +126,6 @@ void _normalize_coordinates(tintty_display *display)
 // @todo support negative cursor_row
 void _render(tintty_display *display)
 {
-	// Check and normalize coordinates before any rendering to prevent overflow
-	_normalize_coordinates(display);
-
 	// expose the cursor key mode state
 	tintty_cursor_key_mode_application = state.cursor_key_mode_application;
 	// if scrolling, prepare the "recycled" screen area
@@ -138,7 +135,7 @@ void _render(tintty_display *display)
 		// @todo handle scroll-up
 		if (static_cast<unsigned long long>(state.top_row) * CHAR_HEIGHT > INT_MAX)
 			giveErrorVisibility(3, 3);
-
+		spr.setScrollRect(0,0,TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
 		spr.scroll(0, -((state.top_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height); // scroll stext 0 pixels left/right, 16 up
 		assureRefreshArea(0, 0, TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
 		// update displayed scroll
@@ -146,7 +143,7 @@ void _render(tintty_display *display)
 		// save rendered state
 		rendered.top_row = state.top_row;
 	}
-
+	_normalize_coordinates(display);
 	// render character if needed - optimized version
 	if (state.out_char != 0)
 	{
@@ -878,9 +875,8 @@ void refreshDisplayIfNeeded()
 	while (true)
 	{
 		yield();
-		current_time = millis();
 		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
-		
+		current_time = millis();
 		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
 		if(!mutex_try_enter(&my_mutex,&owner_out))continue;
@@ -929,7 +925,6 @@ void refreshDisplayIfNeeded()
 			uint16_t h = CHAR_HEIGHT;
 			const uint16_t cursor_x = state.cursor_col * CHAR_WIDTH;
 			const uint16_t cursor_y = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			*/
 			spr.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
 			for (int i = 0; i < CHAR_WIDTH * CHAR_HEIGHT; ++i)
 			{
@@ -937,8 +932,9 @@ void refreshDisplayIfNeeded()
 			}
 			tft.pushImage(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
 			
+			*/
 			// Draw new cursor directly on TFT with white background
-			 //tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
+			tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
 
 			rendered.cursor_col = state.cursor_col;
 			rendered.cursor_row = state.cursor_row;
@@ -987,7 +983,6 @@ void tintty_run(
 	boldCharSpriteBuffer.createSprite(CHAR_WIDTH, CHAR_HEIGHT);
 	boldCharSpriteBuffer.setColorDepth(spr.getColorDepth());
 	boldCharSpriteBuffer.setTextSize(spr.textsize);
-	boldCharSpriteBuffer.setTextColor(TFT_BLACK, TFT_WHITE);
 	boldCharSpriteBuffer.fillSprite(TFT_BLACK);
 	
 	// clear screen & initial render

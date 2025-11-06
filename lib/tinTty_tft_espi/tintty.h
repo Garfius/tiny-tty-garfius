@@ -68,4 +68,5 @@ static const uint16_t myPalette[] PROGMEM = {// CUSTOMIZE !
   TFT_CYAN,// 14  |Bold?
   TFT_WHITE      // 15  |Bold?
 };
+#define TFT_BG_COLOR 0x3044
 extern mutex_t my_mutex;
