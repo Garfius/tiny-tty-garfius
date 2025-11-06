@@ -3,15 +3,19 @@
 #include <TFT_eSPI.h>
 #include "input.h"
 #include "config.h"
+
 #define TIRQ_PIN 8
 
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
-
+mutex_t my_mutex;
 static char identifyTerminal[] = "\e[?1;0c\0";
 // @todo refactor
 bool tintty_cursor_key_mode_application;
 fameBufferControl myCheesyFB{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
+const int16_t TAB_SIZE = 4;
+TFT_eSprite boldCharSpriteBuffer = TFT_eSprite(&tft);;
+uint32_t owner_out =0;
 void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 {
 	myCheesyFB.hasChanges = true;
@@ -25,24 +29,41 @@ void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 		myCheesyFB.maxY = (y + h);
 }
 // Cursor blinking variables removed - using solid white background cursor
+// Convert ANSI foreground codes (30-37, 90-97) to palette index
+inline uint8_t ansi_fg_to_palette(uint16_t ansi_code) {
+    if (ansi_code >= 90 && ansi_code <= 97) {
+        return (ansi_code - 90) + 8; // Bright colors: 8-15
+    } else if (ansi_code >= 30 && ansi_code <= 37) {
+        return ansi_code - 30; // Normal colors: 0-7
+    }
+    return 7; // Default to white
+}
 
-const int16_t TAB_SIZE = 4;
-
-// cursor and character position is in global buffer coordinate space (may exceed screen height)
+// Convert ANSI background codes (40-47, 100-107) to palette index
+inline uint8_t ansi_bg_to_palette(uint16_t ansi_code) {
+    if (ansi_code >= 100 && ansi_code <= 107) {
+        return (ansi_code - 100) + 8; // Bright colors: 8-15
+    } else if (ansi_code >= 40 && ansi_code <= 47) {
+        return ansi_code - 40; // Normal colors: 0-7
+    }
+    return 0; // Default to black
+}
 struct tintty_state
 {
 	// @todo consider storing cursor position as single int offset
 	int16_t cursor_col, cursor_row;
 	uint16_t bg_ansi_color, fg_ansi_color;
-	bool bold;
-
+	bool bold,underline, Strikethrough; //@todo do real bold via char sprite bool=TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent);
+	/*
+		underline, Strikethrough, italic
+	 */
 	// cursor mode
 	bool cursor_key_mode_application;
 
 	// saved DEC cursor info (in screen coords)
 	int16_t dec_saved_col, dec_saved_row, dec_saved_bg, dec_saved_fg;
 	uint8_t dec_saved_g4bank;
-	bool dec_saved_bold, dec_saved_no_wrap;
+	bool dec_saved_bold,dec_saved_underline, dec_saved_Strikethrough, dec_saved_no_wrap;
 
 	// @todo deal with integer overflow
 	int16_t top_row; // first displayed row in a logical scrollback buffer
@@ -140,15 +161,37 @@ void _render(tintty_display *display)
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
 		// Pre-calculate colors to avoid array lookup during rendering
-		const uint16_t fg_TFT__color = state.bold ? myPalette[state.fg_ansi_color + 8] : myPalette[state.fg_ansi_color];
+		uint16_t fg_TFT__color = state.bold ? myPalette[state.fg_ansi_color + 8] : myPalette[state.fg_ansi_color];
 		const uint16_t bg_TFT__color = myPalette[state.bg_ansi_color];
 
-		// Optimize cursor handling - no blinking needed for white background cursor
-
+		// if fg_tft_color equals bg_tft_color, create a differential of 1 within uint16_t range, because lib\TFT_eSPI\Extensions\Sprite.cpp:2007 bool fillbg = (bg != color);
+		if(fg_TFT__color == bg_TFT__color){
+			if(fg_TFT__color == 0xFFFF){
+				fg_TFT__color -= 1;
+			}else{
+				fg_TFT__color += 1;
+			}
+		}
+		
+		// 
 		// write to sprite buffer - batch operations when possible
 		spr.setCursor(x, y);
 		spr.setTextColor(fg_TFT__color, bg_TFT__color);
 		spr.write(state.out_char);
+		if(state.Strikethrough){
+			spr.drawFastHLine(x, y + CHAR_HEIGHT / 2, CHAR_WIDTH, fg_TFT__color);
+		}
+		if(state.underline){
+			spr.drawFastHLine(x, y + CHAR_HEIGHT - 1, CHAR_WIDTH, fg_TFT__color);
+		}
+		if(state.bold){
+			// render the character to the sprite boldCharSpriteBuffer. and write that sprite to spr. overstriking with 1 pixel offset using background as transparency via TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent)
+			boldCharSpriteBuffer.setCursor(0, 0);
+			boldCharSpriteBuffer.setTextColor(fg_TFT__color, bg_TFT__color);
+			boldCharSpriteBuffer.write(state.out_char);
+			boldCharSpriteBuffer.pushToSprite(&spr, x + 1, y, bg_TFT__color);
+		}
+
 
 		assureRefreshArea(x, y, TINTTY_CHAR_WIDTH, TINTTY_CHAR_HEIGHT);
 
@@ -270,8 +313,7 @@ void _apply_graphic_rendition(
 		// special case for resetting to default style
 		state.bg_ansi_color = 0;
 		state.fg_ansi_color = 7;
-		state.bold = false;
-
+		state.underline= state.Strikethrough = state.bold = false;
 		return;
 	}
 
@@ -287,12 +329,23 @@ void _apply_graphic_rendition(
 			// reset to default style
 			state.bg_ansi_color = 0;
 			state.fg_ansi_color = 7;
-			state.bold = false;
+			state.underline = state.Strikethrough = state.bold = false;
 		}
 		else if (arg_value == 7)
 		{
 			state.bg_ansi_color = 7;
 			state.fg_ansi_color = 0;
+		}
+		else if (arg_value == 9)
+		{
+			// strikethrough on
+			state.Strikethrough = true;
+
+		}
+		else if (arg_value == 4)
+		{
+			// underline on
+			state.underline = true;
 		}
 		else if (arg_value == 1)
 		{
@@ -308,10 +361,40 @@ void _apply_graphic_rendition(
 		{
 			// background ANSI colour
 			state.bg_ansi_color = arg_value - 40;
+		}else if (arg_value >= 90 && arg_value <= 97)
+		{
+			// bright foreground ANSI colour
+			state.fg_ansi_color = (arg_value - 90) + 8;
+		}
+		else if (arg_value >= 100 && arg_value <= 107)
+		{
+			// bright background ANSI colour
+			state.bg_ansi_color = (arg_value - 100) + 8;
 		}
 	}
 }
-
+void saveCursor(){
+	state.dec_saved_col = state.cursor_col;
+		state.dec_saved_row = state.cursor_row - state.top_row; // relative to top
+		state.dec_saved_bg = state.bg_ansi_color;
+		state.dec_saved_fg = state.fg_ansi_color;
+		state.dec_saved_g4bank = state.out_char_g4bank;
+		state.dec_saved_bold = state.bold;
+		state.dec_saved_Strikethrough = state.Strikethrough;
+		state.dec_saved_underline = state.underline;
+		state.dec_saved_no_wrap = state.no_wrap;
+}
+void restoreCursor(){
+	state.cursor_col = state.dec_saved_col;
+		state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
+		state.bg_ansi_color = state.dec_saved_bg;
+		state.fg_ansi_color = state.dec_saved_fg;
+		state.out_char_g4bank = state.dec_saved_g4bank;
+		state.bold = state.dec_saved_bold;
+		state.no_wrap = state.dec_saved_no_wrap;
+		state.Strikethrough = state.dec_saved_Strikethrough;
+		state.underline = state.dec_saved_underline;
+}
 void _apply_mode_setting(
 	bool mode_on,
 	uint16_t *arg_list,
@@ -442,7 +525,7 @@ void _exec_escape_bracket_command_with_args(
 										? (display->screen_row_count - 1 - rel_row) * display->screen_col_count + (display->screen_col_count - 1 - state.cursor_col)
 										: 0;
 		}
-		assureRefreshArea(0, 0, TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
+		//assureRefreshArea(0, 0, TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT));
 		break;
 
 	case 'K':
@@ -457,10 +540,10 @@ void _exec_escape_bracket_command_with_args(
 		state.out_clear_after = ARG(0, 0) != 1
 									? display->screen_col_count - 1 - state.cursor_col
 									: 0;
-		x1 = state.cursor_col * CHAR_WIDTH;
+		/*x1 = state.cursor_col * CHAR_WIDTH;
 		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
 		assureRefreshArea()
-		break;
+		break;*/
 
 	case 'm':
 		// graphic rendition mode
@@ -476,9 +559,17 @@ void _exec_escape_bracket_command_with_args(
 		// unset mode
 		_apply_mode_setting(false, arg_list, arg_count);
 		break;
+	case 's':
+		saveCursor();
+	break;
+	case 'u':
+		saveCursor();
+	break;
 	case 'P':
-		// Delete the indicated # of characters on current line.
-		assureRefreshArea()
+		// Delete the indicated # of characters on current line, use TFT_eSprite::setScrollRect and TFT_eSprite::scroll
+		spr.setScrollRect(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT, myPalette[state.bg_ansi_color]);
+		spr.scroll(-ARG(0, 1) * CHAR_WIDTH, 0);
+		assureRefreshArea(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT);
 		break;
 	}
 }
@@ -594,26 +685,17 @@ void _exec_escape_code(
 		break;
 
 	case '7':
-		// save cursor
-		// @todo verify that the screen-relative coordinate approach is valid
-		state.dec_saved_col = state.cursor_col;
-		state.dec_saved_row = state.cursor_row - state.top_row; // relative to top
-		state.dec_saved_bg = state.bg_ansi_color;
-		state.dec_saved_fg = state.fg_ansi_color;
-		state.dec_saved_g4bank = state.out_char_g4bank;
-		state.dec_saved_bold = state.bold;
-		state.dec_saved_no_wrap = state.no_wrap;
+		/*
+		save cursor
+		VT100/ANSI: "\e7" (ESC 7) == xterm/modern: "\e[s" (ESC [ s)
+		@todo verify that the screen-relative coordinate approach is valid
+		*/
+		saveCursor();
 		break;
 
 	case '8':
 		// restore cursor
-		state.cursor_col = state.dec_saved_col;
-		state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
-		state.bg_ansi_color = state.dec_saved_bg;
-		state.fg_ansi_color = state.dec_saved_fg;
-		state.out_char_g4bank = state.dec_saved_g4bank;
-		state.bold = state.dec_saved_bold;
-		state.no_wrap = state.dec_saved_no_wrap;
+		restoreCursor();
 		break;
 
 	case '=':
@@ -772,11 +854,12 @@ void vTaskReadSerial()
 	{
 		myCheesyFB.lastRemoteDataTime = millis();
 	}
-	else if (!myCheesyFB.outputting)
+	else if (!myCheesyFB.outputting && mutex_try_enter(&my_mutex,&owner_out))
 	{
 		myCheesyFB.outputting = true;
 		input_idle();
 		myCheesyFB.outputting = false;
+		mutex_exit(&my_mutex);
 	}
 
 	// Send output data if available
@@ -784,69 +867,6 @@ void vTaskReadSerial()
 	{
 		userTty->print(bufferoUT.consumeChar());
 	}
-}
-
-void tintty_run(
-	char (*peek_char)(),
-	char (*read_char)(),
-	void (*send_char)(char str),
-	tintty_display *display)
-{
-	// set up initial state
-	state.cursor_col = 0;
-	state.cursor_row = 0;
-	state.top_row = 0;
-	state.no_wrap = 0;
-	state.cursor_hidden = 0;
-	state.bg_ansi_color = 0;
-	state.fg_ansi_color = 7;
-	state.bold = false;
-
-	state.cursor_key_mode_application = false;
-
-	state.dec_saved_col = 0;
-	state.dec_saved_row = 0;
-	state.dec_saved_bg = state.bg_ansi_color;
-	state.dec_saved_fg = state.fg_ansi_color;
-	state.dec_saved_g4bank = 0;
-	state.dec_saved_bold = state.bold;
-	state.dec_saved_no_wrap = false;
-
-	state.out_char = 0;
-	state.out_char_g4bank = 0;
-	state.g4bank_char_set[0] = 0;
-	state.g4bank_char_set[1] = 0;
-	state.g4bank_char_set[2] = 0;
-	state.g4bank_char_set[3] = 0;
-
-	rendered.cursor_col = -1;
-	rendered.cursor_row = -1;
-
-	spr.setTextColor(0, 7);
-	// clear screen
-	display->fill_rect(0, 0, display->screen_width, display->screen_height, TFT_BLACK);
-
-	// initial render
-	_render(display);
-
-	// send CR to indicate that the screen is ready
-	// (this works with the agetty --wait-cr option to help wait until Arduino boots)
-	// send_char('\r');
-
-	// main read cycle
-	userTty->flush();
-	while (userTty->available() > 0)
-		userTty->read();
-
-	while (1)
-	{
-
-		_main(peek_char, read_char, send_char, display);
-	}
-}
-void tintty_idle(tintty_display *display)
-{
-	vTaskReadSerial();
 }
 void refreshDisplayIfNeeded()
 {
@@ -863,7 +883,8 @@ void refreshDisplayIfNeeded()
 		
 		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
-		
+		if(!mutex_try_enter(&my_mutex,&owner_out))continue;
+
 		if(calPosarCursor && !state.cursor_hidden){
 			x1 = state.cursor_col * CHAR_WIDTH;
 			y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
@@ -884,15 +905,17 @@ void refreshDisplayIfNeeded()
 		uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
 		uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
 
-		if (width < 1 || height < 1)
+		if (width < 1 || height < 1){
+			mutex_exit(&my_mutex);
 			continue;
-
+		}
+		
 		myCheesyFB.outputting = true;
-
+		
 		// Only push the changed region for better performance
 		/*const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
 		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);*/
-
+		
 		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
 					   myCheesyFB.minX, myCheesyFB.minY, width, height);
 
@@ -913,13 +936,79 @@ void refreshDisplayIfNeeded()
 				buf[i] = ~buf[i];
 			}
 			tft.pushImage(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
-
+			
 			// Draw new cursor directly on TFT with white background
-			// tft.fillRect(cursor_x, cursor_y, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
+			 //tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
 
 			rendered.cursor_col = state.cursor_col;
 			rendered.cursor_row = state.cursor_row;
 		}
-		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
+		myCheesyFB.outputting = false;
+		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0}; // @todo <-- ubicació cursor?
+		mutex_exit(&my_mutex);
 	}
+}
+void tintty_run(
+	char (*peek_char)(),
+	char (*read_char)(),
+	void (*send_char)(char str),
+	tintty_display *display)
+{
+	// set up initial state
+	state.cursor_col = 0;
+	state.cursor_row = 0;
+	state.top_row = 0;
+	state.no_wrap = 0;
+	state.cursor_hidden = 0;
+	state.bg_ansi_color = 0;
+	state.fg_ansi_color = 7;
+	state.bold = state.underline =  state.Strikethrough= false;
+	
+	state.cursor_key_mode_application = false;
+
+	state.dec_saved_col = 0;
+	state.dec_saved_row = 0;
+	state.dec_saved_bg = state.bg_ansi_color;
+	state.dec_saved_fg = state.fg_ansi_color;
+	state.dec_saved_g4bank = 0;
+	state.dec_saved_bold = state.bold;
+	state.dec_saved_no_wrap = false;
+
+	state.out_char = 0;
+	state.out_char_g4bank = 0;
+	state.g4bank_char_set[0] = 0;
+	state.g4bank_char_set[1] = 0;
+	state.g4bank_char_set[2] = 0;
+	state.g4bank_char_set[3] = 0;
+
+	rendered.cursor_col = -1;
+	rendered.cursor_row = -1;
+
+	boldCharSpriteBuffer.createSprite(CHAR_WIDTH, CHAR_HEIGHT);
+	boldCharSpriteBuffer.setColorDepth(spr.getColorDepth());
+	boldCharSpriteBuffer.setTextSize(spr.textsize);
+	boldCharSpriteBuffer.setTextColor(TFT_BLACK, TFT_WHITE);
+	boldCharSpriteBuffer.fillSprite(TFT_BLACK);
+	
+	// clear screen & initial render
+	display->fill_rect(0, 0, display->screen_width, display->screen_height, TFT_BLACK);
+	_render(display);
+	
+	// clear input buffer
+	userTty->flush();
+	while (userTty->available() > 0)
+	userTty->read();
+	
+	// (this works with the agetty --wait-cr option to help wait until Arduino boots)
+	// send CR to indicate that the screen is ready
+	send_char('\r');
+	while (1)
+	{
+
+		_main(peek_char, read_char, send_char, display);
+	}
+}
+void tintty_idle(tintty_display *display)
+{
+	vTaskReadSerial();
 }

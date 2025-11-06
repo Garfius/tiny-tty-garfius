@@ -5,6 +5,7 @@
 #include "tintty.h"
 #include "utils.h"
 #include "input.h"
+#include "pico/multicore.h"
 /**
  * canvi de prova per el git
  * TinTTY main sketch
@@ -18,6 +19,8 @@
  * to-do:
  *  Test on the original ILI9341
  *  Port back to AVR if possible
+ *  Bright colors
+ *  Text modes: bold, underline, Strikethrough, italic
  *  Scroll back
  *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
  *
@@ -138,6 +141,7 @@ void setup()
 	Serial1.setFIFOSize(512); // Increased buffer size
 
 	tft.begin();
+	
 	tft.setFreeFont(GLCD);
 	tft.setTextSize(1);
 	tft.setRotation(2);
@@ -167,7 +171,7 @@ void setup()
 
 	input_init();
 
-
+	mutex_init(&my_mutex);
 	//---------------go!
 	running = true;
 

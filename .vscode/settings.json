@@ -47,6 +47,7 @@
         "system_error": "cpp",
         "utility": "cpp",
         "*.calib2": "cpp",
-        "*.touchtest": "cpp"
+        "*.touchtest": "cpp",
+        "*.printafont": "cpp"
     }
 }

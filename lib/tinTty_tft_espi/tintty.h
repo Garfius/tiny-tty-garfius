@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "utils.h"
+#include "pico/multicore.h"
 
 #define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD);
 #define TINTTY_CHAR_HEIGHT (7+1)
@@ -57,12 +58,14 @@ static const uint16_t myPalette[] PROGMEM = {// CUSTOMIZE !
   TFT_MAGENTA,  //  5  |-
   TFT_CYAN,     //  6  |-
   TFT_WHITE,    //  7  |-
+
   TFT_DARKGREY, //  8  |Bold?
-  TFT_PURPLE,   //  9  |Bold?
+  TFT_PINK,   //  9  |Bold?
   TFT_NAVY,     // 10  |Bold?
-  TFT_BROWN,    // 11  |Bold?
-  TFT_ORANGE,   // 12  |Bold?
-  TFT_MAROON,   // 13  |Bold?
-  TFT_DARKGREEN,// 14  |Bold?
-  TFT_PINK      // 15  |Bold?
+  TFT_GOLD,    // 11  |Bold?
+  TFT_SKYBLUE,   // 12  |Bold?
+  TFT_PURPLE,   // 13  |Bold?
+  TFT_CYAN,// 14  |Bold?
+  TFT_WHITE      // 15  |Bold?
 };
+extern mutex_t my_mutex;
