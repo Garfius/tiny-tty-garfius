@@ -14,15 +14,12 @@
  * Original reference: VT100 emulation code written by Martin K. Schroeder
  * and modified by Peter Scargill.
  *
- * sudo agetty 57600 ttyS21 -8ahn 
+ * sudo agetty -L -8 57600 ttyS21
  * 
  * to-do:
- *  Test on the original ILI9341
- *  Port back to AVR if possible
- *  Bright colors
- *  Text modes: bold, underline, Strikethrough, italic
- *  Scroll back
- *  Improve multi-core, use myCheesyFB.outputting so refresh while receiving
+ *  Text modes: italic
+ *  Scroll back ?
+ *  Improve multi-core
  *
  * PINOUT:
  *	T_IRQ				8 (config.h)TOUCH_IRQ
@@ -80,7 +77,8 @@ void parseToBuffer()
 				// if (userTty->available() > 0)             return (char)userTty->peek(); // Safe to read
 
 				if (buffer.head != buffer.tail)return buffer.myCharBuffer[buffer.head];
-				tintty_idle(&ili9341_display); // render if needed
+				//tintty_idle(&ili9341_display); // render if needed
+				vTaskReadSerial();
 
 				// input_idle();// aqui colisiona mutex
 			}
@@ -92,7 +90,8 @@ void parseToBuffer()
 				// bufferAtoB();
 				// if (userTty->available() > 0) return (char)userTty->read(); // Safe to read
 				if (buffer.head != buffer.tail)return buffer.consumeChar();
-				tintty_idle(&ili9341_display);
+				// tintty_idle(&ili9341_display);
+				vTaskReadSerial();
 
 				// input_idle();// aqui colisiona mutex
 			}
@@ -171,7 +170,7 @@ void setup()
 
 	input_init();
 
-	mutex_init(&my_mutex);
+	//mutex_init(&my_mutex);
 	//---------------go!
 	running = true;
 

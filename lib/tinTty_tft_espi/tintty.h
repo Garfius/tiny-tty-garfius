@@ -17,6 +17,7 @@ struct fameBufferControl {
 extern fameBufferControl myCheesyFB;
 extern void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h);
 void refreshDisplayIfNeeded();
+extern void vTaskReadSerial();
 extern bool tintty_cursor_key_mode_application;
 /**
  * Renderer callbacks.
@@ -44,29 +45,31 @@ void tintty_run(
 
 /**
  * Hook to call while e.g. sketch is waiting for input
- */
-void tintty_idle(
+ void tintty_idle(
     tintty_display *display
 );
+*/
 
 static const uint16_t myPalette[] PROGMEM = {// CUSTOMIZE !
-  TFT_BLACK,    //  0  ^-
-  TFT_RED,      //  1  |-
-  TFT_GREEN,    //  2  |-
-  TFT_YELLOW,   //  3  |-
-  TFT_BLUE,     //  4  |-
-  TFT_MAGENTA,  //  5  |-
-  TFT_CYAN,     //  6  |-
-  TFT_WHITE,    //  7  |-
+  TFT_BLACK,    //  0
+  TFT_RED,      //  1
+  TFT_GREEN,    //  2
+  TFT_YELLOW,   //  3
 
-  TFT_DARKGREY, //  8  |Bold?
-  TFT_PINK,   //  9  |Bold?
-  TFT_NAVY,     // 10  |Bold?
-  TFT_GOLD,    // 11  |Bold?
-  TFT_SKYBLUE,   // 12  |Bold?
-  TFT_PURPLE,   // 13  |Bold?
-  TFT_CYAN,// 14  |Bold?
-  TFT_WHITE      // 15  |Bold?
+  TFT_BLUE,     //  4
+  TFT_MAGENTA,  //  5
+  TFT_CYAN,     //  6
+  TFT_WHITE,    //  7
+
+  TFT_DARKGREY,     //  8
+  TFT_PINK,         //  9
+  TFT_GREENYELLOW,  // 10
+  TFT_GOLD,         // 11
+
+  TFT_SKYBLUE,      // 12
+  TFT_VIOLET,       // 13
+  TFT_CYAN,         // 14
+  TFT_WHITE         // 15
 };
 #define TFT_BG_COLOR 0x3044
-extern mutex_t my_mutex;
+//extern mutex_t my_mutex;

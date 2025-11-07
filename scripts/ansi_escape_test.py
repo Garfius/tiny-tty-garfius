@@ -85,10 +85,10 @@ def main():
     write("Deleted.\n")
 
     demo('Save')
-    write("Saving cursor position..." + CSI + 's')
-    write("\nNow moving cursor down 2 lines..." + CSI + '2A')
+    write("Saving cursor position" + CSI + 's')
+    write("\r\nNow moving cursor up 2 lines" + CSI + '2A')
     time.sleep(1)
-    write("Restored curs pos" + CSI + 'u\n')
+    write("Restored" + CSI + 'u')
     time.sleep(1)
 
     demo('Show/Hide Cursor')

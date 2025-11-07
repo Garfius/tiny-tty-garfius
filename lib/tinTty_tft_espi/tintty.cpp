@@ -8,7 +8,7 @@
 
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
-mutex_t my_mutex;
+//mutex_t my_mutex;
 static char identifyTerminal[] = "\e[?1;0c\0";
 // @todo refactor
 bool tintty_cursor_key_mode_application;
@@ -372,25 +372,25 @@ void _apply_graphic_rendition(
 }
 void saveCursor(){
 	state.dec_saved_col = state.cursor_col;
-		state.dec_saved_row = state.cursor_row - state.top_row; // relative to top
-		state.dec_saved_bg = state.bg_ansi_color;
-		state.dec_saved_fg = state.fg_ansi_color;
-		state.dec_saved_g4bank = state.out_char_g4bank;
-		state.dec_saved_bold = state.bold;
-		state.dec_saved_Strikethrough = state.Strikethrough;
-		state.dec_saved_underline = state.underline;
-		state.dec_saved_no_wrap = state.no_wrap;
+	state.dec_saved_row = state.cursor_row - state.top_row; // relative to top
+	state.dec_saved_bg = state.bg_ansi_color;
+	state.dec_saved_fg = state.fg_ansi_color;
+	state.dec_saved_g4bank = state.out_char_g4bank;
+	state.dec_saved_bold = state.bold;
+	state.dec_saved_Strikethrough = state.Strikethrough;
+	state.dec_saved_underline = state.underline;
+	state.dec_saved_no_wrap = state.no_wrap;
 }
 void restoreCursor(){
 	state.cursor_col = state.dec_saved_col;
-		state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
-		state.bg_ansi_color = state.dec_saved_bg;
-		state.fg_ansi_color = state.dec_saved_fg;
-		state.out_char_g4bank = state.dec_saved_g4bank;
-		state.bold = state.dec_saved_bold;
-		state.no_wrap = state.dec_saved_no_wrap;
-		state.Strikethrough = state.dec_saved_Strikethrough;
-		state.underline = state.dec_saved_underline;
+	state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
+	state.bg_ansi_color = state.dec_saved_bg;
+	state.fg_ansi_color = state.dec_saved_fg;
+	state.out_char_g4bank = state.dec_saved_g4bank;
+	state.bold = state.dec_saved_bold;
+	state.no_wrap = state.dec_saved_no_wrap;
+	state.Strikethrough = state.dec_saved_Strikethrough;
+	state.underline = state.dec_saved_underline;
 }
 void _apply_mode_setting(
 	bool mode_on,
@@ -451,6 +451,7 @@ void _exec_escape_question_command(
 	case 25:
 		// cursor visibility
 		state.cursor_hidden = !mode_on;
+		assureRefreshArea(state.cursor_col * CHAR_WIDTH,((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT),CHAR_WIDTH,CHAR_HEIGHT);
 		break;
 	default:
 		break;
@@ -560,7 +561,7 @@ void _exec_escape_bracket_command_with_args(
 		saveCursor();
 	break;
 	case 'u':
-		saveCursor();
+		restoreCursor();
 	break;
 	case 'P':
 		// Delete the indicated # of characters on current line, use TFT_eSprite::setScrollRect and TFT_eSprite::scroll
@@ -851,14 +852,7 @@ void vTaskReadSerial()
 	{
 		myCheesyFB.lastRemoteDataTime = millis();
 	}
-	else if (!myCheesyFB.outputting && mutex_try_enter(&my_mutex,&owner_out))
-	{
-		myCheesyFB.outputting = true;
-		input_idle();
-		myCheesyFB.outputting = false;
-		mutex_exit(&my_mutex);
-	}
-
+	
 	// Send output data if available
 	if (bufferoUT.head != bufferoUT.tail)
 	{
@@ -874,12 +868,15 @@ void refreshDisplayIfNeeded()
 	uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
 	while (true)
 	{
+
+		input_idle();
+	
 		yield();
 		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
 		current_time = millis();
 		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
-		if(!mutex_try_enter(&my_mutex,&owner_out))continue;
+		//if(!mutex_try_enter(&my_mutex,&owner_out))continue;
 
 		if(calPosarCursor && !state.cursor_hidden){
 			x1 = state.cursor_col * CHAR_WIDTH;
@@ -902,7 +899,7 @@ void refreshDisplayIfNeeded()
 		uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
 
 		if (width < 1 || height < 1){
-			mutex_exit(&my_mutex);
+			//mutex_exit(&my_mutex);
 			continue;
 		}
 		
@@ -941,7 +938,7 @@ void refreshDisplayIfNeeded()
 		}
 		myCheesyFB.outputting = false;
 		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0}; // @todo <-- ubicació cursor?
-		mutex_exit(&my_mutex);
+		//mutex_exit(&my_mutex);
 	}
 }
 void tintty_run(
@@ -1003,7 +1000,5 @@ void tintty_run(
 		_main(peek_char, read_char, send_char, display);
 	}
 }
-void tintty_idle(tintty_display *display)
-{
-	vTaskReadSerial();
-}
+//void tintty_idle(tintty_display *display)
+
