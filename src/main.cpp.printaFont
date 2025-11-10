@@ -1,10 +1,21 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <garFont.h>
 TFT_eSPI tft;
+/*
+p (void*)&font
+RP2040 Memory Map
+Memory Type		Address Range				Description
+Flash (XIP)		0x10000000 - 0x15FFFFFF		Execute-in-Place flash (PROGMEM)
+RAM (SRAM)		0x20000000 - 0x20042000		264KB SRAM (main RAM)
+ROM				0x00000000 - 0x00004000		Bootrom
 
-void printAllCharacters() {
-	const int CHAR_HEIGHT = 8;  // Character height in pixels for text size 1
-	const int LINE_SPACING = 10; // Space between lines
+Key Point: On RP2040, PROGMEM data starts at 0x10000000 and up.
+
+
+ */
+void printAllCharacters(int _LINE_SPACING) {
+	int LINE_SPACING = _LINE_SPACING; // Space between lines
 	int screenHeight = tft.height();
 	int y = 0;
 
@@ -12,7 +23,7 @@ void printAllCharacters() {
 	tft.setTextColor(TFT_WHITE, TFT_BLACK);
 	tft.setCursor(0, 0);
 
-	Serial.println("Starting character display. Press any key to continue when prompted...");
+	Serial1.println("Starting character display. Press any key to continue when prompted...");
 
 	for (int charValue = 0; charValue <= 255; charValue++) {
 		// Check if we've reached the bottom of the screen
@@ -22,16 +33,16 @@ void printAllCharacters() {
 			tft.setTextColor(TFT_YELLOW, TFT_BLACK);
 			
 
-			Serial.println("Bottom of screen reached. Press any key to continue...");
+			Serial1.println("Bottom of screen reached. Press any key to continue...");
 
 			// Wait for serial input
-			while (!Serial.available()) {
+			while (!Serial1.available()) {
 				delay(10);
 			}
 
 			// Clear the serial buffer
-			while (Serial.available()) {
-				Serial.read();
+			while (Serial1.available()) {
+				Serial1.read();
 			}
 
 			// Clear screen and reset position
@@ -67,19 +78,23 @@ void printAllCharacters() {
 	tft.setCursor(0, y + LINE_SPACING);
 	tft.setTextColor(TFT_GREEN, TFT_BLACK);
 	tft.print("Complete!");
-	Serial.println("\nAll characters displayed!");
+	Serial1.println("\nAll characters displayed!");
 }
 
 void setup() {
-	Serial.begin(115200);
-  while (!Serial && (millis() <= 1000U))
-    { continue; }
+	Serial1.begin(115200);
+  	while (!Serial1)continue; 
+	  Serial1.println("boot");
+
     tft.begin();
     tft.setTextSize(1);
+	//tft.setTextFont(1);
+	tft.setFreeFont(&stdmonofont);
     tft.setRotation(0);
+	Serial1.println("H="+(String)tft.fontHeight()+" W="+(String)tft.textWidth(" "));
+	
 	// print all characters on the tft display, and it's corresponding character, wait for serial keypress every time bottom of the screen is reached
-
-	printAllCharacters();
+	printAllCharacters((int)tft.fontHeight());
 }
 
 void loop() {

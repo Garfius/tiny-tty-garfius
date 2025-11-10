@@ -8,3 +8,4 @@
 !/lib/tinTty_tft_espi/**
 !/lib/XPT2046_HR2046_touch
 !/lib/XPT2046_HR2046_touch/**
+scripts/ocd.dump

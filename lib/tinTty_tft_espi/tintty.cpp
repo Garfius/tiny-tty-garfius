@@ -5,6 +5,7 @@
 #include "config.h"
 
 #define TIRQ_PIN 8
+static uint16_t my_4bit_palette[16];
 
 #define CHAR_WIDTH TINTTY_CHAR_WIDTH
 #define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
@@ -158,8 +159,8 @@ void _render(tintty_display *display)
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
 		// Pre-calculate colors to avoid array lookup during rendering
-		uint16_t fg_TFT__color = state.bold ? myPalette[state.fg_ansi_color + 8] : myPalette[state.fg_ansi_color];
-		const uint16_t bg_TFT__color = myPalette[state.bg_ansi_color];
+		uint16_t fg_TFT__color = state.bold ? my_4bit_palette[state.fg_ansi_color + 8] : my_4bit_palette[state.fg_ansi_color];
+		const uint16_t bg_TFT__color = my_4bit_palette[state.bg_ansi_color];
 
 		// if fg_tft_color equals bg_tft_color, create a differential of 1 within uint16_t range, because lib\TFT_eSPI\Extensions\Sprite.cpp:2007 bool fillbg = (bg != color);
 		if(fg_TFT__color == bg_TFT__color){
@@ -205,7 +206,7 @@ void _render(tintty_display *display)
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 				line_before_chars * CHAR_WIDTH,
 				CHAR_HEIGHT,
-				myPalette[state.bg_ansi_color]);
+				my_4bit_palette[state.bg_ansi_color]);
 			for (int16_t i = 0; i < lines_before; i += 1)
 			{
 				if (static_cast<unsigned long long>(state.out_char_row - 1 - i) * CHAR_HEIGHT > UINT16_MAX)
@@ -217,7 +218,7 @@ void _render(tintty_display *display)
 					(((state.out_char_row - rendered.top_row) - 1 - i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 					display->screen_width,
 					CHAR_HEIGHT,
-					myPalette[state.bg_ansi_color]);
+					my_4bit_palette[state.bg_ansi_color]);
 			}
 		}
 
@@ -234,7 +235,7 @@ void _render(tintty_display *display)
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 				line_after_chars * CHAR_WIDTH,
 				CHAR_HEIGHT,
-				myPalette[state.bg_ansi_color]);
+				my_4bit_palette[state.bg_ansi_color]);
 
 			for (int16_t i = 0; i < lines_after; i += 1)
 			{
@@ -245,7 +246,7 @@ void _render(tintty_display *display)
 					(((state.out_char_row - rendered.top_row) + 1 + i) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 					display->screen_width,
 					CHAR_HEIGHT,
-					myPalette[state.bg_ansi_color]);
+					my_4bit_palette[state.bg_ansi_color]);
 			}
 		}
 
@@ -565,7 +566,7 @@ void _exec_escape_bracket_command_with_args(
 	break;
 	case 'P':
 		// Delete the indicated # of characters on current line, use TFT_eSprite::setScrollRect and TFT_eSprite::scroll
-		spr.setScrollRect(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT, myPalette[state.bg_ansi_color]);
+		spr.setScrollRect(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[state.bg_ansi_color]);
 		spr.scroll(-ARG(0, 1) * CHAR_WIDTH, 0);
 		assureRefreshArea(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT);
 		break;
@@ -863,81 +864,62 @@ void refreshDisplayIfNeeded()
 {
 	uint32_t current_time = millis();
 	bool calPosarCursor;
-	uint16_t x1;
-	uint16_t y1;
+	uint16_t x1, y1,x2,y2,minX,minY ;
 	uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
 	while (true)
 	{
 
 		input_idle();
-	
 		yield();
+
 		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
 		current_time = millis();
 		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
-		//if(!mutex_try_enter(&my_mutex,&owner_out))continue;
+		
+		myCheesyFB.hasChanges = false;// mutex
 
+		x1 = state.cursor_col * CHAR_WIDTH;
+		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+		x2 = rendered.cursor_col * CHAR_WIDTH;
+	
+		// Si s'ha mogut el cursor , posa a refresh des del vell al nou
 		if(calPosarCursor && !state.cursor_hidden){
-			x1 = state.cursor_col * CHAR_WIDTH;
-			y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			const uint16_t x2 = rendered.cursor_col * CHAR_WIDTH;
-			const uint16_t y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			int16_t minX = min(x1, x2);
-			int16_t minY = min(y1, y2);
-			int16_t maxX = max(x1, x2);
-			int16_t maxY = max(y1, y2);
-			/*
-			int16_t width = maxX - minX;
-			int16_t height = maxY - minY;
-			*/
-			assureRefreshArea(minX, minY, (maxX - minX)+CHAR_WIDTH, (maxY - minY)+CHAR_HEIGHT);
+			y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+			minX = min(x1, x2);
+			minY = min(y1, y2);
+			assureRefreshArea(minX, minY, (max(x1, x2) - minX)+CHAR_WIDTH, (max(y1, y2) - minY)+CHAR_HEIGHT);
+		}
+		
+		// if the cursor state is within the bounds of myCheesyFB, set calPosarCursor to true
+		if (!state.cursor_hidden && (x1 >= myCheesyFB.minX && x1 < myCheesyFB.maxX && y1 >= myCheesyFB.minY && y1 < myCheesyFB.maxY)){
 			calPosarCursor = true;
 		}
-		
-		uint16_t width = myCheesyFB.maxX - myCheesyFB.minX;
-		uint16_t height = myCheesyFB.maxY - myCheesyFB.minY;
-
-		if (width < 1 || height < 1){
-			//mutex_exit(&my_mutex);
-			continue;
-		}
-		
+				
 		myCheesyFB.outputting = true;
 		
-		// Only push the changed region for better performance
-		/*const uint16_t old_cursor_x = rendered.cursor_col * CHAR_WIDTH;
-		const uint16_t old_cursor_y = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);*/
+		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.maxX - myCheesyFB.minX, myCheesyFB.maxY - myCheesyFB.minY);
 		
-		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY,
-					   myCheesyFB.minX, myCheesyFB.minY, width, height);
-
 		// posar cursor si cal
 		if (calPosarCursor && !state.cursor_hidden)
 		{
-			
-			// Draw cursor directly on TFT
 			/*
-			uint16_t w = CHAR_WIDTH;
-			uint16_t h = CHAR_HEIGHT;
-			const uint16_t cursor_x = state.cursor_col * CHAR_WIDTH;
-			const uint16_t cursor_y = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
 			spr.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
 			for (int i = 0; i < CHAR_WIDTH * CHAR_HEIGHT; ++i)
 			{
 				buf[i] = ~buf[i];
 			}
 			tft.pushImage(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
-			
 			*/
 			// Draw new cursor directly on TFT with white background
-			tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, myPalette[7]); // White block cursor
+			tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[7]); // White block cursor
 
 			rendered.cursor_col = state.cursor_col;
 			rendered.cursor_row = state.cursor_row;
 		}
-		myCheesyFB.outputting = false;
-		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0}; // @todo <-- ubicació cursor?
+		
+		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, myCheesyFB.hasChanges, 0}; // @todo <-- ubicació cursor?
+
 		//mutex_exit(&my_mutex);
 	}
 }
@@ -947,6 +929,11 @@ void tintty_run(
 	void (*send_char)(char str),
 	tintty_display *display)
 {
+	for (int i = 0; i < 16; i++)
+    {
+		my_4bit_palette[i] = default_4bit_palette[i];
+	}
+	
 	// set up initial state
 	state.cursor_col = 0;
 	state.cursor_row = 0;

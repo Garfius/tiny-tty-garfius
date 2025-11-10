@@ -48,6 +48,8 @@
         "utility": "cpp",
         "*.calib2": "cpp",
         "*.touchtest": "cpp",
-        "*.printafont": "cpp"
+        "*.printafont": "cpp",
+        "glcdfontram.c": "cpp",
+        "*.dumpfont": "cpp"
     }
 }

@@ -1,0 +1,26 @@
+#include <TFT_eSPI.h>
+#include <SPI.h>
+
+TFT_eSPI tft = TFT_eSPI();
+
+const uint8_t fontIDs[] = {1, 2, 4, 6, 7, 8};
+const char* fontNames[] = {"FONT 1", "FONT 2", "FONT 4", "FONT 6", "FONT 7", "FONT 8"};
+
+void setup() {
+  tft.init();
+  tft.setRotation(1);
+  tft.fillScreen(TFT_BLACK);
+
+  int y = 10;
+  for (size_t i = 0; i < sizeof(fontIDs)/sizeof(fontIDs[0]); ++i) {
+    tft.setTextFont(fontIDs[i]);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.setCursor(20, y);
+    tft.print(fontNames[i]);
+    tft.print(": Sample text");
+
+    y += tft.fontHeight() + 8; // Move to next line, adjust spacing as needed
+  }
+}
+
+void loop() {}

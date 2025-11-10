@@ -46,7 +46,7 @@ touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}",
             {KEY_ROW_A_X(5), KEY_WIDTH, '5', '%', 0},
             {KEY_ROW_A_X(6), KEY_WIDTH, '6', '^', 0},
             {KEY_ROW_A_X(7), KEY_WIDTH, '7', '&', 0},
-            {KEY_ROW_A_X(8), KEY_WIDTH, '8', '*', 0},
+            {KEY_ROW_A_X(8), KEY_WIDTH, '8', '|', 0},
             {KEY_ROW_A_X(9), KEY_WIDTH, '9', '{', 0},
             {KEY_ROW_A_X(10), KEY_WIDTH, '0', '}', 0},
             {KEY_ROW_A_X(11), KEY_WIDTH, '(', '[', 0},                        //'-', '_', 0 },
@@ -74,7 +74,7 @@ touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}",
      12,
      {
          {1, KEY_ROW_C_X(0) - 1 - KEY_GUTTER, KEYCODE_CAPS, KEYCODE_CAPS, 18},
-         {KEY_ROW_C_X(0), KEY_WIDTH, '!', '|', 0}, // <-- millora
+         {KEY_ROW_C_X(0), KEY_WIDTH, '!', '=', 0}, // <-- millora
          {KEY_ROW_C_X(1), KEY_WIDTH, 'a', 'A', 0},
          {KEY_ROW_C_X(2), KEY_WIDTH, 's', 'S', 0},
 
@@ -103,26 +103,25 @@ touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}",
 
          {KEY_ROW_D_X(8), KEY_WIDTH, 'n', 'N', 0},
          {KEY_ROW_D_X(9), KEY_WIDTH, 'm', 'M', 0},
-         {KEY_ROW_D_X(10), KEY_WIDTH, ',', '\\', 0},
-         {KEY_ROW_D_X(11), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30}, // UP
+         {KEY_ROW_D_X(10), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30}, // UP
+         {KEY_ROW_D_X(11), KEY_WIDTH, '-', '+', 0},//',', '\\', 
 
-         {KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), '.', '/', 0},
+         {KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), ':', ';', 0},//'.', '/'
 
      }},
     {KEY_ROW_A_Y + (KEY_GUTTER + KEY_HEIGHT) * 4,
-     9,
+     7,
      {
-         {1, KEY_ROW_E_X(0) - 1 - KEY_GUTTER, '+', '+', 0},
-         {KEY_ROW_E_X(0), KEY_WIDTH, '-', '-', 0},
-         {KEY_ROW_E_X(1), KEY_WIDTH, '=', '=', 0},
-         {KEY_ROW_E_X(2), KEY_WIDTH, ':', ';', 0},
+         
+         {KEY_ROW_E_X(0), KEY_WIDTH, KEYCODE_CONTROL, KEYCODE_CONTROL, 'C'},
+         {KEY_ROW_E_X(1), KEY_WIDTH, ',', '\\', 0},//'-', '+',
+         {KEY_ROW_E_X(2), KEY_WIDTH, '.', '/', 0},//':', ';', 
 
          {KEY_ROW_E_X(3), (KEY_WIDTH * 5) + 12, ' ', ' ', 0},
-         {KEY_ROW_E_X(8) + 8, KEY_WIDTH, KEYCODE_CONTROL, KEYCODE_CONTROL, 'C'},
-         {KEY_ROW_E_X(9) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17},  // ESQ LEFT
-         {KEY_ROW_E_X(10) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31}, // DN
 
-         {KEY_ROW_E_X(11) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16} // RT
+         {KEY_ROW_E_X(8) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17},  // ESQ LEFT
+         {KEY_ROW_E_X(9) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31}, // DN
+         {KEY_ROW_E_X(10) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16} // RT DRET
 
      }}};
 

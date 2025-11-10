@@ -1,11 +1,12 @@
-#include "Free_Fonts.h" // Include the header file attached to this sketch from TFT_eSPI
+//#include "Free_Fonts.h" // Include the header file attached to this sketch from TFT_eSPI
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <SPI.h>
 #include "tintty.h"
 #include "utils.h"
 #include "input.h"
-#include "pico/multicore.h"
+//#include "pico/multicore.h"
+#include "garFont.h"
 /**
  * canvi de prova per el git
  * TinTTY main sketch
@@ -141,9 +142,7 @@ void setup()
 
 	tft.begin();
 	
-	tft.setFreeFont(GLCD);
-	tft.setTextSize(1);
-	tft.setRotation(2);
+	//tft.setFreeFont(GLCD);
 	gpio_pull_up(2); // ensure pull-up for receiving wire
 
 	userTty = &Serial1; // assign receiving serial port
@@ -153,11 +152,21 @@ void setup()
 
 	spr.setColorDepth(8);
 
-	if (spr.createSprite(TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT)) == nullptr)
+	tft.setTextSize(1);
+	tft.setRotation(2);
+	if (spr.createSprite(TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT)) == nullptr){
 		giveErrorVisibility(1, 2);
-
+	}
 	spr.setTextSize(1);
 	spr.fillSprite(TFT_BLACK);
+	
+	tft.setFreeFont(&stdmonofont);// 
+	spr.setFreeFont(&stdmonofont);
+	/*
+	tft.setTextFont(1);
+	spr.setTextFont(1);
+	*/
+
 	#ifdef touchNoEspi
 		ts.begin(tft.getRotation());
 		calibrator cal = calibrator();
@@ -167,7 +176,7 @@ void setup()
 	#endif
 
 	Serial1.begin(chooseBauds(), SERIAL_8N1);
-
+	
 	input_init();
 
 	//mutex_init(&my_mutex);
