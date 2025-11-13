@@ -14,7 +14,8 @@
 
 // comportament teclat
 #define snappyMillisLimit 100 // idle refresh time - reduced for faster response
-
+#define beepTimeMillis 750
+#define beepBlinkSpeedMillis 175
 #define refreshMillisLimit 2000
 #define keyboardAutoRepeatMillis 250
 #define keyboardReleaseMillis 75 // anti bounce
@@ -35,7 +36,7 @@
 #define TFT_ALSSADA TFT_HEIGHT
 #define RENDER_SKIP_CYCLES 3 // Skip render every N cycles when no changes
 
-// deprecatred
+#define TTY_TEXT_SIZE 1
 /*
 #define cursorBlinkDelay 650
 #define CURSOR_BLINK_SKIP 5	 // Check cursor blink less frequently

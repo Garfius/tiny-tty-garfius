@@ -247,7 +247,7 @@ unsigned long chooseBauds()
 {
 	tft.fillScreen(TFT_BLACK);
 	tft.setTextSize(2);
-	tft.setCursor(0, 0);
+	tft.setCursor(0, tft.fontHeight()+2);
 	tft.println("Escull Velocitat");
 	for (int i = 0; i < NUM_OPTIONS_BAUD_MENU; i++)
 	{
@@ -301,17 +301,18 @@ unsigned long chooseBauds()
 void giveErrorVisibility(int fast,int slow, bool init)
 {
 	if(!init){
+		running = false;
+		delay(250);
 		tft.fillScreen(TFT_BLACK);
 		tft.setTextSize(2);
-		tft.setTextColor(TFT_BLACK, TFT_WHITE);
-		tft.setCursor(10,(TFT_ALSSADA - 30));
+		tft.setTextColor(TFT_RED, TFT_GREEN);
+		tft.setCursor(10,(TFT_ALSSADA - (50)));
 		tft.print("f:");
 		tft.print(fast);
 		tft.print("s:");
 		tft.print(slow);
 	}
 	
-	pinMode(errorLed, OUTPUT);
 	while(true){
 		for(int i=0;i<fast;i++){
 			digitalWrite(errorLed, HIGH);
@@ -332,6 +333,7 @@ void giveErrorVisibility(int fast,int slow, bool init)
 	
 }
 
+volatile bool running = false;  // Definition
 CharBuffer buffer = CharBuffer(INPUT_BUFFER_SIZE, myCharBuffer);
 CharBuffer bufferoUT = CharBuffer(OUTPUT_BUFFER_SIZE, myCharBuffer2);
 #ifdef touchNoEspi

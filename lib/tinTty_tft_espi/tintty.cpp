@@ -5,20 +5,23 @@
 #include "config.h"
 
 #define TIRQ_PIN 8
-static uint16_t my_4bit_palette[16];
+//static uint16_t my_4bit_palette[16];
 
-#define CHAR_WIDTH TINTTY_CHAR_WIDTH
-#define CHAR_HEIGHT TINTTY_CHAR_HEIGHT
-//mutex_t my_mutex;
-static char identifyTerminal[] = "\e[?1;0c\0";
+/*
 // @todo refactor
+*/
+uint16_t CHAR_WIDTH;
+uint16_t CHAR_HEIGHT;
+static char identifyTerminal[] = "\e[?1;0c\0";
 bool tintty_cursor_key_mode_application;
-fameBufferControl myCheesyFB{UINT16_MAX, 0, UINT16_MAX, 0, false, false, 0};
+//mutex_t my_mutex;
+fameBufferControl myCheesyFB{UINT16_MAX, 0, UINT16_MAX, 0,  false, 0,false};
 const int16_t TAB_SIZE = 4;
 TFT_eSprite boldCharSpriteBuffer = TFT_eSprite(&tft);;
 uint32_t owner_out =0;
 void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 {
+	//mutex_enter_blocking(&my_mutex);
 	myCheesyFB.hasChanges = true;
 	if (myCheesyFB.minX > x)
 		myCheesyFB.minX = x;
@@ -28,26 +31,8 @@ void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 		myCheesyFB.minY = y;
 	if (myCheesyFB.maxY < (y + h))
 		myCheesyFB.maxY = (y + h);
-}
-// Cursor blinking variables removed - using solid white background cursor
-// Convert ANSI foreground codes (30-37, 90-97) to palette index
-inline uint8_t ansi_fg_to_palette(uint16_t ansi_code) {
-    if (ansi_code >= 90 && ansi_code <= 97) {
-        return (ansi_code - 90) + 8; // Bright colors: 8-15
-    } else if (ansi_code >= 30 && ansi_code <= 37) {
-        return ansi_code - 30; // Normal colors: 0-7
-    }
-    return 7; // Default to white
-}
-
-// Convert ANSI background codes (40-47, 100-107) to palette index
-inline uint8_t ansi_bg_to_palette(uint16_t ansi_code) {
-    if (ansi_code >= 100 && ansi_code <= 107) {
-        return (ansi_code - 100) + 8; // Bright colors: 8-15
-    } else if (ansi_code >= 40 && ansi_code <= 47) {
-        return ansi_code - 40; // Normal colors: 0-7
-    }
-    return 0; // Default to black
+	//mutex_exit(&my_mutex);
+	
 }
 struct tintty_state
 {
@@ -121,7 +106,7 @@ void _normalize_coordinates(tintty_display *display)
 		rendered.cursor_row = -1;
 
 		// Mark frame buffer for complete refresh
-		assureRefreshArea(0, 0, display->screen_width, display->screen_height);
+		assureRefreshArea(0, 0, TFT_AMPLADA,  (TFT_ALSSADA - KEYBOARD_HEIGHT));
 	}
 }
 // @todo support negative cursor_row
@@ -156,6 +141,8 @@ void _render(tintty_display *display)
 		if (state.out_char_row > (UINT16_MAX / CHAR_HEIGHT))
 			giveErrorVisibility(3, 2);
 
+		// GFXfont: y is baseline (bottom of most chars), cell top is row*CHAR_HEIGHT
+		// GLCD font: y is top-left. Use (CHAR_HEIGHT-1) as baseline offset for GFXfont.
 		const uint16_t y = (row_offset * CHAR_HEIGHT) % display->screen_height;
 
 		// Pre-calculate colors to avoid array lookup during rendering
@@ -173,9 +160,14 @@ void _render(tintty_display *display)
 		
 		// 
 		// write to sprite buffer - batch operations when possible
-		spr.setCursor(x, y);
-		spr.setTextColor(fg_TFT__color, bg_TFT__color);
+		// GFXfont does NOT erase background automatically, so fill the cell first
+		spr.fillRect(x, y, CHAR_WIDTH, CHAR_HEIGHT, bg_TFT__color);
+		
+		// GFXfont needs baseline offset: setCursor y should be baseline, not top-left
+		spr.setCursor(x, y + (CHAR_HEIGHT - 1));
+		spr.setTextColor(fg_TFT__color);
 		spr.write(state.out_char);
+		
 		if(state.Strikethrough){
 			spr.drawFastHLine(x, y + CHAR_HEIGHT / 2, CHAR_WIDTH, fg_TFT__color);
 		}
@@ -184,14 +176,16 @@ void _render(tintty_display *display)
 		}
 		if(state.bold){
 			// render the character to the sprite boldCharSpriteBuffer. and write that sprite to spr. overstriking with 1 pixel offset using background as transparency via TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent)
-			boldCharSpriteBuffer.setCursor(0, 0);
+			// GFXfont: baseline at bottom of temp sprite buffer
+			boldCharSpriteBuffer.fillSprite(bg_TFT__color);  // Clear temp buffer first
+			boldCharSpriteBuffer.setCursor(0, CHAR_HEIGHT - 1);
 			boldCharSpriteBuffer.setTextColor(fg_TFT__color, bg_TFT__color);
 			boldCharSpriteBuffer.write(state.out_char);
 			boldCharSpriteBuffer.pushToSprite(&spr, x + 1, y, bg_TFT__color);
 		}
 
 
-		assureRefreshArea(x, y, TINTTY_CHAR_WIDTH, TINTTY_CHAR_HEIGHT);
+		assureRefreshArea(x, y, CHAR_WIDTH, CHAR_HEIGHT);
 
 		// line-before
 		// @todo detect when straddling edge of buffer
@@ -770,6 +764,10 @@ void _main(
 		// @todo bell, answer-back (0x05), delete
 		switch (initial_character)
 		{
+		case '\a':
+			// Trigger beep without forcing a display region refresh; mutex copy loop will still pick this up.
+			myCheesyFB.beep = true;
+			break;
 		case '\n':
 			// line-feed
 			state.cursor_row += 1;
@@ -866,18 +864,54 @@ void refreshDisplayIfNeeded()
 	bool calPosarCursor;
 	uint16_t x1, y1,x2,y2,minX,minY ;
 	uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
+	static uint32_t beepStartTime;
+	static bool isBeeping;
+	
 	while (true)
 	{
-
 		input_idle();
 		yield();
-
-		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
 		current_time = millis();
-		if ((!myCheesyFB.hasChanges || myCheesyFB.outputting || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
+		// if myCheesyFB.beep, do blinking using digitalWrite at errorLed for timeperiod of beepTimeMillis at blink speed of beepBlinkSpeedMillis on/off, use digitalread to check current state and reuse current_time to avoid delay()
+		// @ todo test
+		if (myCheesyFB.beep)
+		{
+			if (!isBeeping)
+			{
+				beepStartTime = current_time;
+				isBeeping = true;
+				digitalWrite(errorLed, HIGH);
+			}
+			else
+			{
+				if (current_time - beepStartTime >= beepTimeMillis)
+				{
+					// stop beeping
+					isBeeping = false;
+					myCheesyFB.beep = false;
+					digitalWrite(errorLed, LOW);
+				}
+				else
+				{
+					// toggle LED state based on blink speed
+					if (((current_time - beepStartTime) / beepBlinkSpeedMillis) % 2 == 0)
+					{
+						digitalWrite(errorLed, HIGH);
+					}
+					else
+					{
+						digitalWrite(errorLed, LOW);
+					}
+				}
+			}
+		}
+		
+		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
+		
+		if ((!myCheesyFB.hasChanges || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
 		
-		myCheesyFB.hasChanges = false;// mutex
+		myCheesyFB.hasChanges =false;
 
 		x1 = state.cursor_col * CHAR_WIDTH;
 		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
@@ -895,8 +929,6 @@ void refreshDisplayIfNeeded()
 		if (!state.cursor_hidden && (x1 >= myCheesyFB.minX && x1 < myCheesyFB.maxX && y1 >= myCheesyFB.minY && y1 < myCheesyFB.maxY)){
 			calPosarCursor = true;
 		}
-				
-		myCheesyFB.outputting = true;
 		
 		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.maxX - myCheesyFB.minX, myCheesyFB.maxY - myCheesyFB.minY);
 		
@@ -916,12 +948,9 @@ void refreshDisplayIfNeeded()
 
 			rendered.cursor_col = state.cursor_col;
 			rendered.cursor_row = state.cursor_row;
-		}
-		
-		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, myCheesyFB.hasChanges, 0}; // @todo <-- ubicació cursor?
-
-		//mutex_exit(&my_mutex);
+		}		
 	}
+	myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0,  myCheesyFB.hasChanges, 0,false};
 }
 void tintty_run(
 	char (*peek_char)(),
@@ -929,11 +958,10 @@ void tintty_run(
 	void (*send_char)(char str),
 	tintty_display *display)
 {
-	for (int i = 0; i < 16; i++)
+	/*for (int i = 0; i < 16; i++)
     {
 		my_4bit_palette[i] = default_4bit_palette[i];
-	}
-	
+	}*/
 	// set up initial state
 	state.cursor_col = 0;
 	state.cursor_row = 0;
@@ -983,7 +1011,6 @@ void tintty_run(
 	send_char('\r');
 	while (1)
 	{
-
 		_main(peek_char, read_char, send_char, display);
 	}
 }

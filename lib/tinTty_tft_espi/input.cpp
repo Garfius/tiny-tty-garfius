@@ -174,7 +174,8 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key)
     tft.drawFastVLine(ox + key->width - 1, oy, KEY_HEIGHT, borderColor);
     tft.fillRect(ox + 1, oy + 1, key->width - 2, KEY_HEIGHT - 2, keyColor);
 
-    tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2) - 4);
+    // Keyboard uses GLCD font (setTextFont(1)), so y is top-left
+    tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2));
     tft.print(
         key->label == 0
             ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)
@@ -340,7 +341,7 @@ unsigned int lastTouch = 0;
 void input_idle()
 { // passar a lastTouch, permetre baixar
 #ifdef touchNoEspi
-    if (TouchDetected && ts.isTouching())
+    if (TouchDetected)
 #else
     if (TouchDetected && tft.getTouch(&xpos, &ypos, TOUCH_SENSIVITY))
 #endif

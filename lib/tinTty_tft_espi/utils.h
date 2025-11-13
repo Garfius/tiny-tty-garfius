@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "config.h"
+
 #ifndef __tinttyUtils__
 #define __tinttyUtils__
 
@@ -55,7 +56,7 @@ void giveErrorVisibility(int slow, int fast, bool init=false);
 
 	};
 #endif
-
+extern volatile bool running;  // Declaration only - defined in utils.cpp
 extern CharBuffer buffer;
 extern CharBuffer bufferoUT;
 #ifdef touchNoEspi

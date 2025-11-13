@@ -50,6 +50,7 @@
         "*.touchtest": "cpp",
         "*.printafont": "cpp",
         "glcdfontram.c": "cpp",
-        "*.dumpfont": "cpp"
+        "*.dumpfont": "cpp",
+        "*.fonts": "cpp"
     }
 }

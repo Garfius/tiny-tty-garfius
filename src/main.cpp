@@ -39,28 +39,9 @@
  *	VCC		5V
  */
 
-volatile bool running = false;
 
-tintty_display ili9341_display = {						  // from serial to display from ~236 tintty_idle(&ili9341_display)
-	TFT_AMPLADA,										  // x
-	(TFT_ALSSADA - KEYBOARD_HEIGHT),					  // y
-	TFT_AMPLADA / TINTTY_CHAR_WIDTH,					  // colCount
-	(TFT_ALSSADA - KEYBOARD_HEIGHT) / TINTTY_CHAR_HEIGHT, // rowCount
 
-	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) { // fill_rect, cursor
-		assureRefreshArea(x, y, w, h);
-		spr.fillRect(x, y, w, h, color);
-	},
-
-	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pixels) { // draw_pixels, no es fa servir
-		assureRefreshArea(x, y, w, h);
-		spr.setAddrWindow(x, y, x + w - 1, y + h - 1);
-		spr.pushColors(pixels, w * h, 1);
-	},
-
-	[](int16_t offset) { // set_vscroll
-
-	}};
+tintty_display ili9341_display ;
 // buffer to test various input sequences
 // passa el tros indicat a;
 // unsigned static int lastRefresh;
@@ -135,6 +116,7 @@ void setup()
 {
 	//-----------------------setup
 	pinMode(23, OUTPUT); // millora 3.3v GPIO23 controls the RT6150 PS (Power Save) pin. When PS is low (the default on Pico)
+	pinMode(errorLed, OUTPUT);
 	digitalWrite(23, HIGH);
 
 	// Optimize Serial FIFO for better performance
@@ -151,21 +133,47 @@ void setup()
 	giveErrorVisibility(1, 1, true);
 
 	spr.setColorDepth(8);
-
-	tft.setTextSize(1);
-	tft.setRotation(2);
 	if (spr.createSprite(TFT_AMPLADA, (TFT_ALSSADA - KEYBOARD_HEIGHT)) == nullptr){
 		giveErrorVisibility(1, 2);
 	}
-	spr.setTextSize(1);
-	spr.fillSprite(TFT_BLACK);
-	
-	tft.setFreeFont(&stdmonofont);// 
+
+	tft.setRotation(2);
+	tft.setTextSize(TTY_TEXT_SIZE);
+	spr.setTextSize(TTY_TEXT_SIZE);
+	tft.setFreeFont(&stdmonofont);
 	spr.setFreeFont(&stdmonofont);
+
+	
 	/*
+	CHAR_WIDTH= (5+1);
+	CHAR_HEIGHT= (7+1);
 	tft.setTextFont(1);
 	spr.setTextFont(1);
 	*/
+	// GFXfont: fontHeight() includes ascent+descent, so cell height is already correct
+	// Add +1 for line spacing to prevent character overlap between rows
+	CHAR_HEIGHT=tft.fontHeight() + 1;
+	CHAR_WIDTH = tft.textWidth(" ") + 1;
+	ili9341_display= {						  // from serial to display from ~236 tintty_idle(&ili9341_display)
+	(int16_t)TFT_AMPLADA,										  // x
+	(int16_t)(TFT_ALSSADA - KEYBOARD_HEIGHT),					  // y
+	(int16_t)(TFT_AMPLADA / CHAR_WIDTH),					  // colCount
+	(int16_t)((TFT_ALSSADA - KEYBOARD_HEIGHT) / CHAR_HEIGHT), // rowCount
+
+	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color) { // fill_rect, cursor
+		assureRefreshArea(x, y, w, h);
+		spr.fillRect(x, y, w, h, color);
+	},
+
+	[](int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pixels) { // draw_pixels, no es fa servir
+		assureRefreshArea(x, y, w, h);
+		spr.setAddrWindow(x, y, x + w - 1, y + h - 1);
+		spr.pushColors(pixels, w * h, 1);
+	},
+
+	[](int16_t offset) { // set_vscroll
+
+	}};
 
 	#ifdef touchNoEspi
 		ts.begin(tft.getRotation());
@@ -175,6 +183,8 @@ void setup()
 		tft_espi_calibrate_touch();
 	#endif
 
+	spr.fillSprite(TFT_BLACK);
+	
 	Serial1.begin(chooseBauds(), SERIAL_8N1);
 	
 	input_init();
