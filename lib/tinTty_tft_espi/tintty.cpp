@@ -161,11 +161,16 @@ void _render(tintty_display *display)
 		// 
 		// write to sprite buffer - batch operations when possible
 		// GFXfont does NOT erase background automatically, so fill the cell first
+		#ifdef usingGFXfreefont
 		spr.fillRect(x, y, CHAR_WIDTH, CHAR_HEIGHT, bg_TFT__color);
-		
-		// GFXfont needs baseline offset: setCursor y should be baseline, not top-left
+		#endif
+		#ifdef usingGFXfreefont
 		spr.setCursor(x, y + (CHAR_HEIGHT - 1));
 		spr.setTextColor(fg_TFT__color);
+		#else
+		spr.setCursor(x, y);
+		spr.setTextColor(fg_TFT__color,bg_TFT__color);
+		#endif
 		spr.write(state.out_char);
 		
 		if(state.Strikethrough){
@@ -175,10 +180,12 @@ void _render(tintty_display *display)
 			spr.drawFastHLine(x, y + CHAR_HEIGHT - 1, CHAR_WIDTH, fg_TFT__color);
 		}
 		if(state.bold){
-			// render the character to the sprite boldCharSpriteBuffer. and write that sprite to spr. overstriking with 1 pixel offset using background as transparency via TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent)
-			// GFXfont: baseline at bottom of temp sprite buffer
+			#ifdef usingGFXfreefont
 			boldCharSpriteBuffer.fillSprite(bg_TFT__color);  // Clear temp buffer first
 			boldCharSpriteBuffer.setCursor(0, CHAR_HEIGHT - 1);
+			#else
+			boldCharSpriteBuffer.setCursor(0, 0);
+			#endif
 			boldCharSpriteBuffer.setTextColor(fg_TFT__color, bg_TFT__color);
 			boldCharSpriteBuffer.write(state.out_char);
 			boldCharSpriteBuffer.pushToSprite(&spr, x + 1, y, bg_TFT__color);
@@ -200,7 +207,7 @@ void _render(tintty_display *display)
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 				line_before_chars * CHAR_WIDTH,
 				CHAR_HEIGHT,
-				my_4bit_palette[state.bg_ansi_color]);
+				my_4bit_palette[state.bg_ansi_color]); // <--@todo canviar a background, bug= neteja amb color canviat
 			for (int16_t i = 0; i < lines_before; i += 1)
 			{
 				if (static_cast<unsigned long long>(state.out_char_row - 1 - i) * CHAR_HEIGHT > UINT16_MAX)
@@ -229,7 +236,7 @@ void _render(tintty_display *display)
 				((state.out_char_row - rendered.top_row) * CHAR_HEIGHT) % display->screen_height, // @todo deal with overflow from multiplication
 				line_after_chars * CHAR_WIDTH,
 				CHAR_HEIGHT,
-				my_4bit_palette[state.bg_ansi_color]);
+				my_4bit_palette[state.bg_ansi_color]);// <--@todo canviar a background, bug= neteja amb color canviat
 
 			for (int16_t i = 0; i < lines_after; i += 1)
 			{
@@ -453,7 +460,6 @@ void _exec_escape_question_command(
 	}
 }
 
-// @todo cursor position report
 void _exec_escape_bracket_command_with_args(
 	char (*peek_char)(),
 	char (*read_char)(),
@@ -536,8 +542,8 @@ void _exec_escape_bracket_command_with_args(
 		/*x1 = state.cursor_col * CHAR_WIDTH;
 		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
 		assureRefreshArea()
-		break;*/
-
+		*/
+		break;
 	case 'm':
 		// graphic rendition mode
 		_apply_graphic_rendition(arg_list, arg_count);
@@ -558,6 +564,23 @@ void _exec_escape_bracket_command_with_args(
 	case 'u':
 		restoreCursor();
 	break;
+	case 'c':
+		for (int i = 0; i < sizeof(identifyTerminal); i++) {
+			bufferoUT.addChar(identifyTerminal[i]);
+		}
+	break;
+	case 'n':
+		// 100% copilot, not tested at all
+		if (ARG(0, 0) == 6) {
+			char cpr_response[32];
+			int16_t report_row = (state.cursor_row - state.top_row) + 1;
+			int16_t report_col = state.cursor_col + 1;
+			snprintf(cpr_response, sizeof(cpr_response), "\x1b[%d;%dR", report_row, report_col);
+			for (int i = 0; cpr_response[i] != '\0'; i++) {
+				bufferoUT.addChar(cpr_response[i]);
+			}
+		}
+		break;
 	case 'P':
 		// Delete the indicated # of characters on current line, use TFT_eSprite::setScrollRect and TFT_eSprite::scroll
 		spr.setScrollRect(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[state.bg_ansi_color]);

@@ -174,8 +174,11 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key)
     tft.drawFastVLine(ox + key->width - 1, oy, KEY_HEIGHT, borderColor);
     tft.fillRect(ox + 1, oy + 1, key->width - 2, KEY_HEIGHT - 2, keyColor);
 
-    // Keyboard uses GLCD font (setTextFont(1)), so y is top-left
+    #ifdef usingGFXfreefont
     tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2));
+    #else
+    tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2)-4);
+    #endif
     tft.print(
         key->label == 0
             ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)

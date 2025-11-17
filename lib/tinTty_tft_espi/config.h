@@ -17,7 +17,7 @@
 #define beepTimeMillis 750
 #define beepBlinkSpeedMillis 175
 #define refreshMillisLimit 2000
-#define keyboardAutoRepeatMillis 250
+#define keyboardAutoRepeatMillis 200
 #define keyboardReleaseMillis 75 // anti bounce
 
 //-----------touch
@@ -37,6 +37,7 @@
 #define RENDER_SKIP_CYCLES 3 // Skip render every N cycles when no changes
 
 #define TTY_TEXT_SIZE 1
+#define usingGFXfreefont
 /*
 #define cursorBlinkDelay 650
 #define CURSOR_BLINK_SKIP 5	 // Check cursor blink less frequently

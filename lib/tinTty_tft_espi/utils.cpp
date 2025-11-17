@@ -247,7 +247,11 @@ unsigned long chooseBauds()
 {
 	tft.fillScreen(TFT_BLACK);
 	tft.setTextSize(2);
+	#ifdef usingGFXfreefont
 	tft.setCursor(0, tft.fontHeight()+2);
+	#else
+	tft.setCursor(0, 0);
+	#endif
 	tft.println("Escull Velocitat");
 	for (int i = 0; i < NUM_OPTIONS_BAUD_MENU; i++)
 	{

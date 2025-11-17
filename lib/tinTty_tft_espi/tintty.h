@@ -66,27 +66,3 @@ static const uint16_t my_4bit_palette[] = {
     0x07FF, // bright cyan
     0xFFFF  // bright white
 };
-/* {// CUSTOMIZE !
-    TFT_BLACK,    //  0
-    TFT_RED,      //  1
-    TFT_GREEN,    //  2
-    TFT_YELLOW,   //  3
-
-    TFT_BLUE,     //  4
-    TFT_MAGENTA,  //  5
-    TFT_CYAN,     //  6
-    TFT_WHITE,    //  7
-    
-    TFT_DARKGREY,     //  8
-    TFT_PINK,         //  9
-    TFT_GREENYELLOW,  // 10
-    TFT_GOLD,         // 11
-    
-    TFT_SKYBLUE,      // 12
-    TFT_VIOLET,       // 13
-    TFT_CYAN,         // 14
-    TFT_WHITE         // 15
-};*/
-       
-// #define TFT_BG_COLOR 0x3044 // windows terminal bg color, not used
-//fameBufferControl myCheesyFB;
