@@ -128,10 +128,10 @@ uint8_t XPT2046_HR2046_touch::validTouch(uint16_t *x, uint16_t *y, uint16_t thre
 
 	//  Serial.print("Sample 1 x,y = "); Serial.print(x_tmp);Serial.print(",");Serial.print(y_tmp);
 	//  Serial.print(", Z = ");Serial.println(z1);
-
+/*
 	delay(1); // Small delay to the next sample
 	if (getTouchRawZ() <= threshold)
-		return false;
+		return false;*/
 
 	delay(2); // Small delay to the next sample
 	getTouchRaw(&x_tmp2, &y_tmp2);
@@ -163,7 +163,7 @@ uint8_t XPT2046_HR2046_touch::getTouch(uint16_t *x, uint16_t *y, uint16_t thresh
 	if (_pressTime > millis())
 		threshold = 20;
 
-	uint8_t n = 5;
+	uint8_t n = VALID_TOUCK_CHECKS;
 	uint8_t valid = 0;
 	while (n--)
 	{

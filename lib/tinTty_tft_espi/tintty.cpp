@@ -892,8 +892,8 @@ void refreshDisplayIfNeeded()
 	
 	while (true)
 	{
-		input_idle();
 		yield();
+		if(!input_idle())continue;
 		current_time = millis();
 		// if myCheesyFB.beep, do blinking using digitalWrite at errorLed for timeperiod of beepTimeMillis at blink speed of beepBlinkSpeedMillis on/off, use digitalread to check current state and reuse current_time to avoid delay()
 		// @ todo test

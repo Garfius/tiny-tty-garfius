@@ -6,6 +6,7 @@
 
 #define SPI_TOUCH_FREQUENCY 2500000
 #define TOUCH_THRESHOLD 600
+#define VALID_TOUCK_CHECKS 3 // WAS 5
 struct Point_XPT2046_HR2046_touch
 {
 	float x;

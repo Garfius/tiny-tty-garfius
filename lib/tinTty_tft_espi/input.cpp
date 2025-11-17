@@ -167,11 +167,9 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key)
 
     const int16_t ox = key->x;
     const int16_t oy = rowCY;
-
-    tft.drawFastHLine(ox, oy, key->width, borderColor);
-    tft.drawFastHLine(ox, oy + KEY_HEIGHT - 1, key->width, borderColor);
-    tft.drawFastVLine(ox, oy, KEY_HEIGHT, borderColor);
-    tft.drawFastVLine(ox + key->width - 1, oy, KEY_HEIGHT, borderColor);
+    if(!isActive){
+        tft.drawRect(ox, oy, key->width, KEY_HEIGHT, borderColor);
+    }
     tft.fillRect(ox + 1, oy + 1, key->width - 2, KEY_HEIGHT - 2, keyColor);
 
     #ifdef usingGFXfreefont
@@ -179,10 +177,12 @@ void _input_draw_key(struct touchKeyRow *keyRow, struct touchKey *key)
     #else
     tft.setCursor(key->x + (key->width / 2) - 3, rowCY + (KEY_HEIGHT / 2)-4);
     #endif
-    tft.print(
-        key->label == 0
-            ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)
-            : key->label);
+    if(!isActive){
+        tft.print(
+            key->label == 0
+                ? (shiftIsActive ? (char)key->shiftCode : (char)key->code)
+                : key->label);
+    }
 }
 
 void _input_draw_all_keys()
@@ -341,7 +341,7 @@ unsigned int lastTouch = 0;
  * tarda keyboardReleaseMillis a donar per aixecat el boli
  * keyboardAutoRepeatMillis
  */
-void input_idle()
+bool input_idle()
 { // passar a lastTouch, permetre baixar
 #ifdef touchNoEspi
     if (TouchDetected)
@@ -353,7 +353,7 @@ void input_idle()
         getTouchDisplay(&xpos, &ypos);        tft.drawCircle(xpos,ypos,5,TFT_GREEN);        return;
         */
         if (!ts.getTouch(&xpos, &ypos))
-            return;
+            return (millis() > (lastTouch + keyboardReleaseMillis));
         
         lastTouch = millis();
         if (!armed)
@@ -371,7 +371,6 @@ void input_idle()
                 _input_process_touch(xpos, ypos);
             }
         }
-        
     }
     else if (armed && (millis() > (lastTouch + keyboardReleaseMillis)))
     { // si no esta tocant, netejar
@@ -380,6 +379,7 @@ void input_idle()
         armed = false;
         
     }
+    return millis() > (lastTouch + keyboardReleaseMillis);
 }
 
 

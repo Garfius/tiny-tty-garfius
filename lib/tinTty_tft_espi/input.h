@@ -10,4 +10,4 @@
 #define KEY_ROW_A_Y (TFT_ALSSADA - KEYBOARD_HEIGHT + KEYBOARD_GUTTER)//480-(6 * 1)+(5*(16+3))+4 +4
 
 void input_init();
-void input_idle();
+bool input_idle();
