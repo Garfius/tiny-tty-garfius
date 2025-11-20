@@ -1,6 +1,9 @@
 #include "Arduino.h"
+//#include "pico/multicore.h"// https://github.com/dennisma/pico-mut/blob/master/mut.cpp
+
+#ifndef __tintty__
+#define __tintty__
 #include "utils.h"
-#include "pico/multicore.h"// https://github.com/dennisma/pico-mut/blob/master/mut.cpp
 
 /*
 #define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD);
@@ -66,3 +69,4 @@ static const uint16_t my_4bit_palette[] = {
     0x07FF, // bright cyan
     0xFFFF  // bright white
 };
+#endif

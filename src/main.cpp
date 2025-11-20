@@ -178,7 +178,7 @@ void setup()
 	#ifdef touchNoEspi
 		ts.begin(tft.getRotation());
 		calibrator cal = calibrator();
-		cal.xpt2046CalibrateSet(30,30);
+		cal.xpt2046CalibrateSet(30,30,&ili9341_display);
 	#else
 		tft_espi_calibrate_touch();
 	#endif

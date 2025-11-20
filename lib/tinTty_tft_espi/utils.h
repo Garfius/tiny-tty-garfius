@@ -3,7 +3,10 @@
 
 #ifndef __tinttyUtils__
 #define __tinttyUtils__
+#include "tintty.h"
 
+// Forward declaration
+struct tintty_display;
 
 #define ERR_FAST_BLINK 50
 #define ERR_SLOW_BLINK 400
@@ -45,14 +48,15 @@ void giveErrorVisibility(int slow, int fast, bool init=false);
 
 #ifdef touchNoEspi
 	class calibrator{
+		Point_XPT2046_HR2046_touch mtpp;
 		size_t _eepromSizeInit;
 		int _eepromPos;
 		bool retrieveCalibrationPoints();
 		void storeCalibrationPoints();
-		void calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX = 0, uint16_t borderY = 0);
+		bool calibrateTouch(uint16_t borderX, uint16_t borderY, bool calibOk);
 	public:
 		calibrator(size_t eepromSizeInit= 255,int eepromPos = 16);
-		void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY);
+		void xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY,tintty_display *display);
 
 	};
 #endif

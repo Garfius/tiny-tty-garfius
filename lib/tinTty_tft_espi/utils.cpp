@@ -59,26 +59,51 @@ void tft_espi_calibrate_touch()
 }
 #else
 
-	void calibrator::calibrateTouch(uint32_t color_fg, uint32_t color_bg, uint16_t borderX, uint16_t borderY)
+	bool calibrator::calibrateTouch(uint16_t borderX, uint16_t borderY, bool calibOk)
 	{
+		uint32_t color_fg = TFT_RED;
+		uint32_t color_bg = TFT_GREEN;
 		uint8_t size = 4;
 		uint16_t x_tmp, y_tmp;
-		// Fill ts.src[4] with screen bordered values, corresponds to the linear plane of the display
+		Point_XPT2046_HR2046_touch dst[4];
+		Point_XPT2046_HR2046_touch src[4];
+		// Fill src[4] with screen bordered values, corresponds to the linear plane of the display
 		// Order: [0]=top-left, [1]=top-right, [2]=bottom-left, [3]=bottom-right
-		ts.src[0].x = borderX;					// top-left x
-		ts.src[0].y = borderY;					// top-left y
-		ts.src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
-		ts.src[1].y = borderY;					// top-right y
-		ts.src[2].x = borderX;					// bottom-left x
-		ts.src[2].y = TFT_HEIGHT - borderY - 1; // bottom-left y
-		ts.src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
-		ts.src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
-		// Fill ts.dst with zeroes
+		src[0].x = borderX;					// top-left x
+		src[0].y = borderY;					// top-left y
+		src[1].x = TFT_WIDTH - borderX - 1;	// top-right x
+		src[1].y = borderY;					// top-right y
+		src[2].x = borderX;					// bottom-left x
+		src[2].y = TFT_HEIGHT - borderY - 1; // bottom-left y
+		src[3].x = TFT_WIDTH - borderX - 1;	// bottom-right x
+		src[3].y = TFT_HEIGHT - borderY - 1; // bottom-right y
+		// Fill dst with zeroes
 		for (uint8_t i = 0; i < 4; i++)
 		{
-			ts.dst[i].x = 0.0;
-			ts.dst[i].y = 0.0;
+			dst[i].x = 0.0;
+			dst[i].y = 0.0;
 		}
+		
+		// Draw cancel button in center of screen
+		const char* cancelText = "CANCEL";
+		tft.setTextSize(2);
+		int16_t cancelWidth = tft.textWidth(cancelText);
+		int16_t cancelHeight = tft.fontHeight();
+		int16_t padding = 10;
+		int16_t boxWidth = cancelWidth + (padding * 2);
+		int16_t boxHeight = cancelHeight + (padding * 2);
+		int16_t boxX = (TFT_WIDTH/2) - (boxWidth/2);
+		int16_t boxY = (TFT_HEIGHT/2) - (boxHeight/2);
+		
+		tft.drawRect(boxX, boxY, boxWidth, boxHeight, TFT_WHITE);
+		tft.setTextColor(TFT_WHITE, color_bg);
+		#ifdef usingGFXfreefont
+		tft.setCursor(boxX + padding, (boxY + padding)+cancelHeight);
+		#else
+		tft.setCursor(boxX + padding, boxY + padding);
+		#endif
+		tft.print(cancelText);
+
 		// corner positions adjusted by borderX/borderY and size
 		for (uint8_t i = 0; i < 4; i++)
 		{
@@ -105,24 +130,44 @@ void tft_espi_calibrate_touch()
 				break;
 			}
 
-			tft.fillCircle(TFT_WIDTH/2 , TFT_HEIGHT /2 , size*2, TFT_GREEN);
+			tft.fillCircle(TFT_WIDTH/2 , (TFT_HEIGHT /2) -(boxHeight+(size*2)), size*2, TFT_RED);
 			// user has to get the chance to release
 			if (i > 0)
 				delay(2000);
-			tft.fillCircle(TFT_WIDTH/2 , TFT_HEIGHT /2 , size*2, TFT_BLACK);
+			tft.fillCircle(TFT_WIDTH/2 , (TFT_HEIGHT /2) -(boxHeight+(size*2)) , size*2, TFT_BLACK);
 
 			// sample 8 times and average for stability
 			for (uint8_t j = 0; j < 8; j++)
 			{
 				// Read touch coordinates
-				while (!ts.validTouch(&x_tmp, &y_tmp))
-					;
-				ts.dst[i].x += x_tmp;
-				ts.dst[i].y += y_tmp;
+				while (!ts.validTouch(&x_tmp, &y_tmp)){};
+					dst[i].x += (float)x_tmp;
+					dst[i].y += (float)y_tmp;
 			}
-			ts.dst[i].x = ts.dst[i].x / 8;
-			ts.dst[i].y = ts.dst[i].y / 8;
+			dst[i].x = dst[i].x / 8;
+			dst[i].y = dst[i].y / 8;
+			if(calibOk && ts.mapPoint(dst[i].x, dst[i].y, mtpp)){
+				if (mtpp.x >= boxX && mtpp.x <= (boxX + boxWidth) &&
+					mtpp.y >= boxY && mtpp.y <= (boxY + boxHeight))
+				{
+					tft.fillRect(boxX, boxY, boxWidth, boxHeight, TFT_WHITE);
+					delay(500);
+					tft.fillRect(boxX, boxY, boxWidth, boxHeight, TFT_RED);
+					delay(500);
+					tft.fillRect(boxX, boxY, boxWidth, boxHeight, TFT_WHITE);
+					return false; // Calibration cancelled
+				}
+			}
+			
+
 		}
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			ts.dst[i] = dst[i];
+			ts.src[i] = src[i];
+		}
+
+		return true;
 	}
 	// Store ts.src and ts.dst arrays to EEPROM
 	void calibrator::storeCalibrationPoints()
@@ -181,6 +226,14 @@ void tft_espi_calibrate_touch()
 		{
 			dstBytePtr[i] = EEPROM.read(eePos + i);
 		}
+		for(int i=0;i<4;i++){
+			if((ts.dst->x ==0) || (ts.dst->y ==0)){
+				EEPROM.write(80,0);
+				EEPROM.commit();
+				EEPROM.end();
+				return false;
+			}
+		}
 
 		EEPROM.end();
 		return true; // Successfully retrieved calibration points
@@ -191,17 +244,28 @@ void tft_espi_calibrate_touch()
 		_eepromPos = eepromPos;
 	}
 	
-	void calibrator::xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY)
+	void calibrator::xpt2046CalibrateSet(uint16_t borderX, uint16_t borderY,tintty_display *display)
 	{
-		if (ts.isTouching() || (!retrieveCalibrationPoints()))
+		bool calibOk = retrieveCalibrationPoints();
+		if (ts.isTouching() || (!calibOk))
 		{
 			tft.fillScreen(TFT_YELLOW);
-			delay(1000);
+			tft.setTextColor(TFT_BLACK, TFT_YELLOW);
+			tft.setTextSize(2);
+			char cpr_response[32];
+			snprintf(cpr_response, sizeof(cpr_response), "Rows:%d Cols:%d", display->screen_col_count,display->screen_row_count);
+			tft.setCursor((TFT_AMPLADA - tft.textWidth(cpr_response))/2, (TFT_ALSSADA/2)-tft.fontHeight());
+			tft.print(cpr_response);//TFT_AMPLADA TFT_Alssada?
+			snprintf(cpr_response, sizeof(cpr_response), "Char W:%d Char H:%d", CHAR_WIDTH,CHAR_HEIGHT);
+			tft.setCursor((TFT_AMPLADA - tft.textWidth(cpr_response))/2, (TFT_ALSSADA/2));
+			tft.print(cpr_response);
+			delay(2000);
 			tft.fillScreen(TFT_BLACK);
 			// data not valid. recalibrate. Pass borderX/borderY into calibrateTouch
-			calibrateTouch(TFT_WHITE, TFT_RED, borderX, borderY);
-			// store data
-			storeCalibrationPoints();
+			uint8_t rot =tft.getRotation();
+			tft.setRotation(0);
+			if(calibrateTouch(borderX, borderY,calibOk))storeCalibrationPoints();
+			tft.setRotation(rot);
 			tft.fillScreen(TFT_BLACK);
 		}
 	}
