@@ -570,7 +570,6 @@ void _exec_escape_bracket_command_with_args(
 		}
 	break;
 	case 'n':
-		// 100% copilot, not tested at all
 		if (ARG(0, 0) == 6) {
 			char cpr_response[32];
 			int16_t report_row = (state.cursor_row - state.top_row) + 1;
@@ -587,7 +586,22 @@ void _exec_escape_bracket_command_with_args(
 		spr.scroll(-ARG(0, 1) * CHAR_WIDTH, 0);
 		assureRefreshArea(state.cursor_col * CHAR_WIDTH, (state.cursor_row - state.top_row) * CHAR_HEIGHT % display->screen_height, (display->screen_col_count - state.cursor_col) * CHAR_WIDTH, CHAR_HEIGHT);
 		break;
+	case 't':
+		if (ARG(0, 0) == 18) {
+			char cpr_response[32];
+			int16_t report_row = (state.cursor_row - state.top_row) + 1;
+			int16_t report_col = state.cursor_col + 1;
+			snprintf(cpr_response, sizeof(cpr_response), "\x1b[8;%d;%dt", display->screen_row_count , display->screen_col_count);
+			for (int i = 0; cpr_response[i] != '\0'; i++) {
+				bufferoUT.addChar(cpr_response[i]);
+			}
+		}
+		break;
+	default:
+		break;
+
 	}
+	
 }
 
 void _exec_escape_bracket_command(

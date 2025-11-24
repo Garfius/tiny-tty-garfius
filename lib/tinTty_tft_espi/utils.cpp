@@ -253,7 +253,7 @@ void tft_espi_calibrate_touch()
 			tft.setTextColor(TFT_BLACK, TFT_YELLOW);
 			tft.setTextSize(2);
 			char cpr_response[32];
-			snprintf(cpr_response, sizeof(cpr_response), "Rows:%d Cols:%d", display->screen_col_count,display->screen_row_count);
+			snprintf(cpr_response, sizeof(cpr_response), "Rows:%d Cols:%d",display->screen_row_count, display->screen_col_count);
 			tft.setCursor((TFT_AMPLADA - tft.textWidth(cpr_response))/2, (TFT_ALSSADA/2)-tft.fontHeight());
 			tft.print(cpr_response);//TFT_AMPLADA TFT_Alssada?
 			snprintf(cpr_response, sizeof(cpr_response), "Char W:%d Char H:%d", CHAR_WIDTH,CHAR_HEIGHT);
