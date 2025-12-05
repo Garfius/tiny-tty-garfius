@@ -453,7 +453,10 @@ void _exec_escape_question_command(
 	case 25:
 		// cursor visibility
 		state.cursor_hidden = !mode_on;
-		assureRefreshArea(state.cursor_col * CHAR_WIDTH,((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT),CHAR_WIDTH,CHAR_HEIGHT);
+		if (!state.cursor_hidden)
+		{
+			assureRefreshArea(state.cursor_col * CHAR_WIDTH,((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT),CHAR_WIDTH,CHAR_HEIGHT);
+		}
 		break;
 	default:
 		break;
@@ -898,19 +901,23 @@ void vTaskReadSerial()
 void refreshDisplayIfNeeded()
 {
 	uint32_t current_time = millis();
-	bool calPosarCursor;
-	uint16_t x1, y1,x2,y2,minX,minY ;
-	uint16_t buf[CHAR_WIDTH * CHAR_HEIGHT];
+	bool cursor_hidden = state.cursor_hidden;
+	uint16_t x1, y1, x2, y2, minX, minY;
 	static uint32_t beepStartTime;
 	static bool isBeeping;
+	bool should_update;
+	// cursor blink state
+	static uint32_t lastCursorBlinkTime = 0;
+	static bool cursorBlinkVisible = true;
 	
 	while (true)
 	{
 		yield();
 		if(!input_idle())continue;
 		current_time = millis();
-		// if myCheesyFB.beep, do blinking using digitalWrite at errorLed for timeperiod of beepTimeMillis at blink speed of beepBlinkSpeedMillis on/off, use digitalread to check current state and reuse current_time to avoid delay()
-		// @ todo test
+		cursor_hidden = state.cursor_hidden;
+		
+		// handle LED beep blinking
 		if (myCheesyFB.beep)
 		{
 			if (!isBeeping)
@@ -919,75 +926,95 @@ void refreshDisplayIfNeeded()
 				isBeeping = true;
 				digitalWrite(errorLed, HIGH);
 			}
+			else if (current_time - beepStartTime >= beepTimeMillis)
+			{
+				// stop beeping
+				isBeeping = false;
+				myCheesyFB.beep = false;
+				digitalWrite(errorLed, LOW);
+			}
 			else
 			{
-				if (current_time - beepStartTime >= beepTimeMillis)
+				// toggle LED state based on blink speed
+				digitalWrite(errorLed, (((current_time - beepStartTime) / beepBlinkSpeedMillis) % 2 == 0) ? HIGH : LOW);
+			}
+		}
+		
+		bool cursor_moved = (state.cursor_row > -1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
+		
+		// when cursor position changes, reset blink and force visible immediately
+		if (cursor_moved && !cursor_hidden)
+		{
+			cursorBlinkVisible = true;
+			lastCursorBlinkTime = current_time;
+		}
+		else if (cursor_hidden)
+		{
+			// if cursor is hidden, ensure blink flag resets so it shows immediately when unhidden
+			cursorBlinkVisible = true;
+			lastCursorBlinkTime = current_time;
+		}
+		else
+		{
+			// handle cursor blink timing (only if cursor hasn't just moved)
+			bool blink_interval_elapsed = (uint32_t)(current_time - lastCursorBlinkTime) >= (uint32_t)TINTTY_BLINK_INTERVAL_MS;
+			
+			if (blink_interval_elapsed)
+			{
+				lastCursorBlinkTime = current_time;
+				cursorBlinkVisible = !cursorBlinkVisible;
+				// request redraw of both current cursor cell and previously rendered cursor cell
+				x1 = state.cursor_col * CHAR_WIDTH;
+				y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+				assureRefreshArea(x1, y1, CHAR_WIDTH, CHAR_HEIGHT);
+				if (rendered.cursor_col >= 0)
 				{
-					// stop beeping
-					isBeeping = false;
-					myCheesyFB.beep = false;
-					digitalWrite(errorLed, LOW);
-				}
-				else
-				{
-					// toggle LED state based on blink speed
-					if (((current_time - beepStartTime) / beepBlinkSpeedMillis) % 2 == 0)
-					{
-						digitalWrite(errorLed, HIGH);
-					}
-					else
-					{
-						digitalWrite(errorLed, LOW);
-					}
+					x2 = rendered.cursor_col * CHAR_WIDTH;
+					y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+					assureRefreshArea(x2, y2, CHAR_WIDTH, CHAR_HEIGHT);
 				}
 			}
 		}
 		
-		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
+		should_update = myCheesyFB.hasChanges && (current_time >= (myCheesyFB.lastRemoteDataTime + snappyMillisLimit));
 		
-		if ((!myCheesyFB.hasChanges || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
+		// early exit if no display updates needed
+		if (!should_update && (!cursor_moved || cursor_hidden))
 			continue;
 		
-		myCheesyFB.hasChanges =false;
+		myCheesyFB.hasChanges = false;
 
+		// compute current cursor screen position once
 		x1 = state.cursor_col * CHAR_WIDTH;
 		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-		x2 = rendered.cursor_col * CHAR_WIDTH;
 	
-		// Si s'ha mogut el cursor , posa a refresh des del vell al nou
-		if(calPosarCursor && !state.cursor_hidden){
+		// mark refresh area if cursor moved
+		if (cursor_moved && !cursor_hidden)
+		{
+			x2 = rendered.cursor_col * CHAR_WIDTH;
 			y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
 			minX = min(x1, x2);
 			minY = min(y1, y2);
-			assureRefreshArea(minX, minY, (max(x1, x2) - minX)+CHAR_WIDTH, (max(y1, y2) - minY)+CHAR_HEIGHT);
+			assureRefreshArea(minX, minY, (max(x1, x2) - minX) + CHAR_WIDTH, (max(y1, y2) - minY) + CHAR_HEIGHT);
 		}
 		
-		// if the cursor state is within the bounds of myCheesyFB, set calPosarCursor to true
-		if (!state.cursor_hidden && (x1 >= myCheesyFB.minX && x1 < myCheesyFB.maxX && y1 >= myCheesyFB.minY && y1 < myCheesyFB.maxY)){
-			calPosarCursor = true;
+		// mark refresh if cursor is within dirty region
+		if (!cursor_hidden && (x1 >= myCheesyFB.minX && x1 < myCheesyFB.maxX && y1 >= myCheesyFB.minY && y1 < myCheesyFB.maxY))
+		{
+			cursor_moved = true;
 		}
 		
 		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.maxX - myCheesyFB.minX, myCheesyFB.maxY - myCheesyFB.minY);
 		
-		// posar cursor si cal
-		if (calPosarCursor && !state.cursor_hidden)
+		// draw cursor if visible, moved, and blink state allows
+		if (cursor_moved && !cursor_hidden && cursorBlinkVisible)
 		{
-			/*
-			spr.readRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
-			for (int i = 0; i < CHAR_WIDTH * CHAR_HEIGHT; ++i)
-			{
-				buf[i] = ~buf[i];
-			}
-			tft.pushImage(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, buf);
-			*/
-			// Draw new cursor directly on TFT with white background
 			tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[7]); // White block cursor
-
 			rendered.cursor_col = state.cursor_col;
 			rendered.cursor_row = state.cursor_row;
-		}		
+		}
+		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, myCheesyFB.hasChanges, 0, myCheesyFB.beep};
 	}
-	myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0,  myCheesyFB.hasChanges, 0,false};
 }
 void tintty_run(
 	char (*peek_char)(),

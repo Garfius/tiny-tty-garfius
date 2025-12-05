@@ -5,6 +5,7 @@
 #define __tintty__
 #include "utils.h"
 
+#define TINTTY_BLINK_INTERVAL_MS 500
 /*
 #define TINTTY_CHAR_WIDTH (5+1)// see .setFreeFont(GLCD);
 #define TINTTY_CHAR_HEIGHT (7+1)

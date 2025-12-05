@@ -51,6 +51,7 @@
         "*.printafont": "cpp",
         "glcdfontram.c": "cpp",
         "*.dumpfont": "cpp",
-        "*.fonts": "cpp"
+        "*.fonts": "cpp",
+        "cstring": "cpp"
     }
 }
