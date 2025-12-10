@@ -52,6 +52,7 @@
         "glcdfontram.c": "cpp",
         "*.dumpfont": "cpp",
         "*.fonts": "cpp",
-        "cstring": "cpp"
+        "cstring": "cpp",
+        "cstdint": "cpp"
     }
 }
