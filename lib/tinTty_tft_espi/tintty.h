@@ -1,5 +1,5 @@
 #include "Arduino.h"
-//#include "pico/multicore.h"// https://github.com/dennisma/pico-mut/blob/master/mut.cpp
+#include "pico/multicore.h"// https://github.com/dennisma/pico-mut/blob/master/mut.cpp
 
 #ifndef __tintty__
 #define __tintty__

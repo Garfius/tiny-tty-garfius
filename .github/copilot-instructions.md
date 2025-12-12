@@ -5,6 +5,8 @@ Main structure: uses a on memory sprite 'spr' as a frame buffer, and 'tft' as di
 The vt100 data input from (Serial mapped to 'Stream *userTty') is buffered at (buffer object, instance of CharBuffer) and parsed by tintty.cpp functions to spr. 
 fameBufferControl myCheesyFB controls the spr modified area to be redrawn to tft, mantained by tintty.cpp functions, which shall take in account the cursor movement position and state.
 
+The on display keyboard is managed at input.cpp, the main structure is of touchKeyRows which is of touchKeyRow which is of touchKey. Most of keyboard shape is declared via preprocessor directives. It's main function is input_idle.
+
 Uses 'core1' to process the received serial data via called via: setup parseToBuffer tintty_run vTaskReadSerial
 
 Uses 'core2' takes care of the outputs to user (display(spr to tft)), cursor,beep led via: loop1 refreshDisplayIfNeeded.  Also takes care of the on display keyboard via input_idle at refreshDisplayIfNeeded.

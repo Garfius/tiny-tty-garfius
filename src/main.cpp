@@ -110,7 +110,7 @@ void setup1()
 	while (!running)
 	{
 	}
-	delay(10);// race condition, cal esperar que arranqui el core0
+	delay(150);// race condition, cal esperar que arranqui el core0
 }
 
 void setup()

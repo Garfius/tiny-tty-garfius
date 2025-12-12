@@ -14,14 +14,14 @@ uint16_t CHAR_WIDTH;
 uint16_t CHAR_HEIGHT;
 static char identifyTerminal[] = "\e[?1;0c\0";
 bool tintty_cursor_key_mode_application;
-//mutex_t my_mutex;
+mutex_t my_mutex;
 fameBufferControl myCheesyFB{UINT16_MAX, 0, UINT16_MAX, 0,  false, 0,false};
 const int16_t TAB_SIZE = 4;
 TFT_eSprite boldCharSpriteBuffer = TFT_eSprite(&tft);;
 uint32_t owner_out =0;
 void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 {
-	//mutex_enter_blocking(&my_mutex);
+	mutex_enter_blocking(&my_mutex);
 	myCheesyFB.hasChanges = true;
 	if (myCheesyFB.minX > x)
 		myCheesyFB.minX = x;
@@ -31,7 +31,7 @@ void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 		myCheesyFB.minY = y;
 	if (myCheesyFB.maxY < (y + h))
 		myCheesyFB.maxY = (y + h);
-	//mutex_exit(&my_mutex);
+	mutex_exit(&my_mutex);
 	
 }
 struct tintty_state
@@ -261,18 +261,20 @@ void _render(tintty_display *display)
 
 void _ensure_cursor_vscroll(tintty_display *display)
 {
-	// move displayed window down to cover cursor
-	// @todo support scrolling up as well
-	if (state.cursor_row - state.top_row >= display->screen_row_count)
-	{
-		state.top_row = state.cursor_row - display->screen_row_count + 1;
-	}
+    // move displayed window down to cover cursor
+    // @todo support scrolling up as well
+    if (state.cursor_row - state.top_row >= display->screen_row_count)
+    {
+        mutex_enter_blocking(&my_mutex);
+        state.top_row = state.cursor_row - display->screen_row_count + 1;
+        mutex_exit(&my_mutex);
+    }
 
-	// Check if coordinates are getting too large and normalize if needed
-	if (state.cursor_row > (UINT16_MAX / CHAR_HEIGHT) - display->screen_row_count)
-	{
-		_normalize_coordinates(display);
-	}
+    // Check if coordinates are getting too large and normalize if needed
+    if (state.cursor_row > (UINT16_MAX / CHAR_HEIGHT) - display->screen_row_count)
+    {
+        _normalize_coordinates(display);
+    }
 }
 
 void _send_sequence(
@@ -384,15 +386,17 @@ void saveCursor(){
 	state.dec_saved_no_wrap = state.no_wrap;
 }
 void restoreCursor(){
-	state.cursor_col = state.dec_saved_col;
-	state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
-	state.bg_ansi_color = state.dec_saved_bg;
-	state.fg_ansi_color = state.dec_saved_fg;
-	state.out_char_g4bank = state.dec_saved_g4bank;
-	state.bold = state.dec_saved_bold;
-	state.no_wrap = state.dec_saved_no_wrap;
-	state.Strikethrough = state.dec_saved_Strikethrough;
-	state.underline = state.dec_saved_underline;
+    mutex_enter_blocking(&my_mutex);
+    state.cursor_col = state.dec_saved_col;
+    state.cursor_row = state.dec_saved_row + state.top_row; // relative to top
+    state.bg_ansi_color = state.dec_saved_bg;
+    state.fg_ansi_color = state.dec_saved_fg;
+    state.out_char_g4bank = state.dec_saved_g4bank;
+    state.bold = state.dec_saved_bold;
+    state.no_wrap = state.dec_saved_no_wrap;
+    state.Strikethrough = state.dec_saved_Strikethrough;
+    state.underline = state.dec_saved_underline;
+    mutex_exit(&my_mutex);
 }
 void _apply_mode_setting(
 	bool mode_on,
@@ -486,29 +490,39 @@ void _exec_escape_bracket_command_with_args(
 
 	case 'A':
 		// cursor up (no scroll)
+		mutex_enter_blocking(&my_mutex);
 		state.cursor_row = max(state.top_row, state.cursor_row - ARG(0, 1));
+		mutex_exit(&my_mutex);
 		break;
 
 	case 'B':
 		// cursor down (no scroll)
+		mutex_enter_blocking(&my_mutex);
 		state.cursor_row = min(state.top_row + display->screen_row_count - 1, state.cursor_row + ARG(0, 1));
+		mutex_exit(&my_mutex);
 		break;
 
 	case 'C':
 		// cursor right (no scroll)
+		mutex_enter_blocking(&my_mutex);
 		state.cursor_col = min(display->screen_col_count - 1, state.cursor_col + ARG(0, 1));
+		mutex_exit(&my_mutex);
 		break;
 
 	case 'D':
 		// cursor left (no scroll)
+		mutex_enter_blocking(&my_mutex);
 		state.cursor_col = max(0, state.cursor_col - ARG(0, 1));
+		mutex_exit(&my_mutex);
 		break;
 
 	case 'H':
 	case 'f':
 		// Direct Cursor Addressing (row;col)
+		mutex_enter_blocking(&my_mutex);
 		state.cursor_col = max(0, min(display->screen_col_count - 1, ARG(1, 1) - 1));
 		state.cursor_row = state.top_row + max(0, min(display->screen_row_count - 1, ARG(0, 1) - 1));
+		mutex_exit(&my_mutex);
 		break;
 
 	case 'J':
@@ -677,48 +691,50 @@ void _exec_character_set(
 // @todo terminal reset
 // @todo parse modes with arguments even if they are no-op
 void _exec_escape_code(
-	char (*peek_char)(),
-	char (*read_char)(),
-	void (*send_char)(char ch),
-	tintty_display *display)
+    char (*peek_char)(),
+    char (*read_char)(),
+    void (*send_char)(char ch),
+    tintty_display *display)
 {
-	// read next character after Escape-code
-	// @todo time out?
-	char esc_character = read_char();
+    char esc_character = read_char();
+    switch (esc_character)
+    {
+    case '[':
+        _exec_escape_bracket_command(peek_char, read_char, send_char, display);
+        break;
 
-	// @todo support for (, ), #, c, cursor save/restore
-	switch (esc_character)
-	{
-	case '[':
-		_exec_escape_bracket_command(peek_char, read_char, send_char, display);
-		break;
+    case 'D':
+        // index (move down and possibly scroll)
+        mutex_enter_blocking(&my_mutex);
+        state.cursor_row += 1;
+        mutex_exit(&my_mutex);
+        _ensure_cursor_vscroll(display);
+        break;
 
-	case 'D':
-		// index (move down and possibly scroll)
-		state.cursor_row += 1;
-		_ensure_cursor_vscroll(display);
-		break;
+    case 'M':
+        // reverse index (move up and possibly scroll)
+        mutex_enter_blocking(&my_mutex);
+        state.cursor_row -= 1;
+        mutex_exit(&my_mutex);
+        _ensure_cursor_vscroll(display);
+        break;
 
-	case 'M':
-		// reverse index (move up and possibly scroll)
-		state.cursor_row -= 1;
-		_ensure_cursor_vscroll(display);
-		break;
+    case 'E':
+        // next line
+        mutex_enter_blocking(&my_mutex);
+        state.cursor_row += 1;
+        state.cursor_col = 0;
+        mutex_exit(&my_mutex);
+        _ensure_cursor_vscroll(display);
+        break;
 
-	case 'E':
-		// next line
-		state.cursor_row += 1;
-		state.cursor_col = 0;
-		_ensure_cursor_vscroll(display);
-		break;
+    case 'Z':
+        // Identify Terminal (DEC Private)
+        _send_sequence(send_char, identifyTerminal); // DA response: no options
+        break;
 
-	case 'Z':
-		// Identify Terminal (DEC Private)
-		_send_sequence(send_char, identifyTerminal); // DA response: no options
-		break;
-
-	case '7':
-		/*
+    case '7':
+        /*
 		save cursor
 		VT100/ANSI: "\e7" (ESC 7) == xterm/modern: "\e[s" (ESC [ s)
 		@todo verify that the screen-relative coordinate approach is valid
@@ -764,106 +780,105 @@ void _exec_escape_code(
 }
 
 void _main(
-	char (*peek_char)(),
-	char (*read_char)(),
-	void (*send_char)(char str),
-	tintty_display *display)
+    char (*peek_char)(),
+    char (*read_char)(),
+    void (*send_char)(char str),
+    tintty_display *display)
 {
-	// start in default idle state
-	char initial_character = read_char();
+    // start in default idle state
+    char initial_character = read_char();
 
-	if (initial_character >= 0x20 && initial_character <= 0x7e)
-	{
-		// output displayable character
-		state.out_char = initial_character;
-		state.out_char_col = state.cursor_col;
-		state.out_char_row = state.cursor_row;
+    if (initial_character >= 0x20 && initial_character <= 0x7e)
+    {
+        mutex_enter_blocking(&my_mutex);
+        // output displayable character: record to state and bump cursor
+        state.out_char = initial_character;
+        state.out_char_col = state.cursor_col;
+        state.out_char_row = state.cursor_row;
 
-		// update caret
-		state.cursor_col += 1;
+        state.cursor_col += 1;
+        // handle wrapping / vscroll
+        if (state.cursor_col >= display->screen_col_count)
+        {
+            if (state.no_wrap)
+            {
+                state.cursor_col = display->screen_col_count - 1;
+            }
+            else
+            {
+                state.cursor_col = 0;
+                state.cursor_row += 1;
+                // top_row update will be done in _ensure_cursor_vscroll if needed
+            }
+        }
+        mutex_exit(&my_mutex);
 
-		if (state.cursor_col >= display->screen_col_count)
-		{
-			if (state.no_wrap)
-			{
-				state.cursor_col = display->screen_col_count - 1;
-			}
-			else
-			{
-				state.cursor_col = 0;
-				state.cursor_row += 1;
-				_ensure_cursor_vscroll(display);
-			}
-		}
+        if (!state.no_wrap && state.cursor_col == 0)
+            _ensure_cursor_vscroll(display);
 
-		// reset idle state
-		state.idle_cycle_count = 0;
-	}
-	else
-	{
-		// @todo bell, answer-back (0x05), delete
-		switch (initial_character)
-		{
-		case '\a':
-			// Trigger beep without forcing a display region refresh; mutex copy loop will still pick this up.
-			myCheesyFB.beep = true;
-			break;
-		case '\n':
-			// line-feed
-			state.cursor_row += 1;
-			_ensure_cursor_vscroll(display);
-			break;
+        state.idle_cycle_count = 0;
+    }
+    else
+    {
+        switch (initial_character)
+        {
+        case '\n':
+            mutex_enter_blocking(&my_mutex);
+            state.cursor_row += 1;
+            mutex_exit(&my_mutex);
+            _ensure_cursor_vscroll(display);
+            break;
 
-		case '\r':
-			// carriage-return
-			state.cursor_col = 0;
-			break;
+        case '\r':
+            mutex_enter_blocking(&my_mutex);
+            state.cursor_col = 0;
+            mutex_exit(&my_mutex);
+            break;
 
-		case '\b':
-			// backspace
-			state.cursor_col -= 1;
+        case '\b':
+            mutex_enter_blocking(&my_mutex);
+            state.cursor_col -= 1;
+            if (state.cursor_col < 0)
+            {
+                if (state.no_wrap)
+                {
+                    state.cursor_col = 0;
+                }
+                else
+                {
+                    state.cursor_col = display->screen_col_count - 1;
+                    state.cursor_row -= 1;
+                }
+            }
+            mutex_exit(&my_mutex);
+            _ensure_cursor_vscroll(display);
+            break;
 
-			if (state.cursor_col < 0)
-			{
-				if (state.no_wrap)
-				{
-					state.cursor_col = 0;
-				}
-				else
-				{
-					state.cursor_col = display->screen_col_count - 1;
-					state.cursor_row -= 1;
-					_ensure_cursor_vscroll(display);
-				}
-			}
+        case '\t':
+            mutex_enter_blocking(&my_mutex);
+            {
+                const int16_t tab_num = state.cursor_col / TAB_SIZE;
+                state.cursor_col = min(display->screen_col_count - 1, (tab_num + 1) * TAB_SIZE);
+            }
+            mutex_exit(&my_mutex);
+            break;
 
-			break;
+        case '\e':
+            // Escape-command
+            _exec_escape_code(peek_char, read_char, send_char, display);
+            break;
 
-		case '\t':
-			// tab
-			{
-				// @todo blank out the existing characters? not sure if that is expected
-				const int16_t tab_num = state.cursor_col / TAB_SIZE;
-				state.cursor_col = min(display->screen_col_count - 1, (tab_num + 1) * TAB_SIZE);
-			}
-			break;
+        case '\x0f':
+            // Shift-In (use G0)
+            // see also the fun reason why these are called this way:
+            // https://en.wikipedia.org/wiki/Shift_Out_and_Shift_In_characters
+            state.out_char_g4bank = 0;
+            break;
 
-		case '\e':
-			// Escape-command
-			_exec_escape_code(peek_char, read_char, send_char, display);
-			break;
-
-		case '\x0f':
-			// Shift-In (use G0)
-			// see also the fun reason why these are called this way:
-			// https://en.wikipedia.org/wiki/Shift_Out_and_Shift_In_characters
-			state.out_char_g4bank = 0;
-			break;
-
-		case '\x0e':
-			// Shift-Out (use G1)
-			state.out_char_g4bank = 1;
-			break;
+        case '\x0e':
+            // Shift-Out (use G1)
+            state.out_char_g4bank = 1;
+            break;
 
 			// default:
 
@@ -900,29 +915,40 @@ void vTaskReadSerial()
 }
 void refreshDisplayIfNeeded()
 {
-	uint32_t current_time = millis();
-	bool calPosarCursor;
-	uint16_t x1, y1,x2,y2,minX,minY ;
-	static uint32_t beepStartTime;
-	static bool isBeeping;
-	static uint32_t lastCursorBlinkTime = 0;
-	static bool cursorBlinkVisible = true;
-	
-	while (true)
-	{
-		yield();
-		if(!input_idle())continue;
-		current_time = millis();
-		
-		// Handle cursor blinking
-		if (current_time - lastCursorBlinkTime >= TINTTY_BLINK_INTERVAL_MS)
-		{
-			lastCursorBlinkTime = current_time;
-			cursorBlinkVisible = !cursorBlinkVisible;
-			assureRefreshArea(state.cursor_col * CHAR_WIDTH, ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT), CHAR_WIDTH, CHAR_HEIGHT);	
-		}
-		
-		// if myCheesyFB.beep, do blinking using digitalWrite at errorLed for timeperiod of beepTimeMillis at blink speed of beepBlinkSpeedMillis on/off, use digitalread to check current state and reuse current_time to avoid delay()
+    uint32_t current_time = millis();
+    bool calPosarCursor;
+    bool cursorBlinkTriggered = false;
+    uint16_t x1, y1, x2, y2, minX, minY;
+    static uint32_t beepStartTime;
+    static bool isBeeping;
+    static uint32_t lastCursorBlinkTime = 0;
+    static bool cursorBlinkVisible = true;
+    fameBufferControl localFB;
+
+    // local snapshot of the cursor/top that we'll use for display decisions after the FB snapshot
+    int16_t s_cursor_col = 0, s_cursor_row = 0, s_top_row = 0;
+
+    while (true)
+    {
+        yield();
+        if (!input_idle())
+            continue;
+        current_time = millis();
+
+        // Handle cursor blinking
+        if (current_time - lastCursorBlinkTime >= TINTTY_BLINK_INTERVAL_MS)
+        {
+            lastCursorBlinkTime = current_time;
+            cursorBlinkVisible = !cursorBlinkVisible;
+            assureRefreshArea(state.cursor_col * CHAR_WIDTH, ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT), CHAR_WIDTH, CHAR_HEIGHT);
+            cursorBlinkTriggered = true;
+        }
+        else
+        {
+            cursorBlinkTriggered = false;
+        }
+
+        // if myCheesyFB.beep, do blinking using digitalWrite at errorLed for timeperiod of beepTimeMillis at blink speed of beepBlinkSpeedMillis on/off, use digitalread to check current state and reuse current_time to avoid delay()
 		// @ todo test
 		if (myCheesyFB.beep)
 		{
@@ -958,51 +984,63 @@ void refreshDisplayIfNeeded()
 		
 		calPosarCursor = (state.cursor_row >-1) && (rendered.cursor_col != state.cursor_col || rendered.cursor_row != state.cursor_row);
 		
-		if ((!myCheesyFB.hasChanges || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
+		if (!cursorBlinkTriggered && (!myCheesyFB.hasChanges || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))) && ((!calPosarCursor || state.cursor_hidden) || (current_time < (myCheesyFB.lastRemoteDataTime + snappyMillisLimit))))
 			continue;
 		
-		myCheesyFB.hasChanges =false;
+		// take a thread-safe copy of the framebuffer control AND the shared cursor state
+		mutex_enter_blocking(&my_mutex);
 
-		x1 = state.cursor_col * CHAR_WIDTH;
-		y1 = ((state.cursor_row - state.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-		x2 = rendered.cursor_col * CHAR_WIDTH;
-	
-		// Si s'ha mogut el cursor , posa a refresh des del vell al nou
-		if(calPosarCursor && !state.cursor_hidden){
-			lastCursorBlinkTime =0;
-			cursorBlinkVisible = false;
-			y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
-			minX = min(x1, x2);
-			minY = min(y1, y2);
-			assureRefreshArea(minX, minY, (max(x1, x2) - minX)+CHAR_WIDTH, (max(y1, y2) - minY)+CHAR_HEIGHT);
-		}
-		
-		// if the cursor state is within the bounds of myCheesyFB, set calPosarCursor to true
-		if (!state.cursor_hidden && (x1 >= myCheesyFB.minX && x1 < myCheesyFB.maxX && y1 >= myCheesyFB.minY && y1 < myCheesyFB.maxY)){
-			calPosarCursor = true;
-		}
-		
-		spr.pushSprite(myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.minX, myCheesyFB.minY, myCheesyFB.maxX - myCheesyFB.minX, myCheesyFB.maxY - myCheesyFB.minY);
-		
-		// posar cursor si cal with blinking
-		if (calPosarCursor && !state.cursor_hidden)
-		{
-			if (cursorBlinkVisible)
-			{
-				// Draw cursor as white block when visible
-				tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[7]); // White block cursor
-			}
-			else
-			{
-				// Redraw the character at cursor position from sprite when cursor is hidden
-				spr.pushSprite(x1, y1, x1, y1, CHAR_WIDTH, CHAR_HEIGHT);
-			}
+        localFB = myCheesyFB;
+        // snapshot cursor/top so we won't race with the parser while we calculate/paint
+        s_cursor_col = state.cursor_col;
+        s_cursor_row = state.cursor_row;
+        s_top_row = state.top_row;
 
-			rendered.cursor_col = state.cursor_col;
-			rendered.cursor_row = state.cursor_row;
-		}		
-		myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0,  myCheesyFB.hasChanges, 0,myCheesyFB.beep};
-	}
+        myCheesyFB = fameBufferControl{UINT16_MAX, 0, UINT16_MAX, 0, false, 0, myCheesyFB.beep};
+
+        mutex_exit(&my_mutex);
+
+        // use the local snapshot values from here on
+        x1 = s_cursor_col * CHAR_WIDTH;
+        y1 = ((s_cursor_row - s_top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+        x2 = rendered.cursor_col * CHAR_WIDTH;
+
+        // If cursor moved, add the old area too (rendered still contains the previous values)
+        if (calPosarCursor && !state.cursor_hidden)
+        {
+            lastCursorBlinkTime = 0;
+            cursorBlinkVisible = false;
+            y2 = ((rendered.cursor_row - rendered.top_row) * CHAR_HEIGHT) % (TFT_ALSSADA - KEYBOARD_HEIGHT);
+            minX = min(x1, x2);
+            minY = min(y1, y2);
+            assureRefreshArea(minX, minY, (max(x1, x2) - minX) + CHAR_WIDTH, (max(y1, y2) - minY) + CHAR_HEIGHT);
+        }
+
+        // if the cursor position (snapshot) is within the bounds of the snapshot of the FB, force redraw of cursor area
+        if (!state.cursor_hidden && (x1 >= localFB.minX && x1 < localFB.maxX && y1 >= localFB.minY && y1 < localFB.maxY))
+        {
+            calPosarCursor = true;
+        }
+
+        spr.pushSprite(localFB.minX, localFB.minY, localFB.minX, localFB.minY, localFB.maxX - localFB.minX, localFB.maxY - localFB.minY);
+
+        // draw using snapshot coordinate - avoid races on state while drawing
+        if (calPosarCursor && !state.cursor_hidden)
+        {
+            if (cursorBlinkVisible)
+            {
+                tft.fillRect(x1, y1, CHAR_WIDTH, CHAR_HEIGHT, my_4bit_palette[7]); // White block cursor
+            }
+            else
+            {
+                spr.pushSprite(x1, y1, x1, y1, CHAR_WIDTH, CHAR_HEIGHT);
+            }
+
+            // set rendered state from the snapshot coordinates
+            rendered.cursor_col = s_cursor_col;
+            rendered.cursor_row = s_cursor_row;
+        }
+    }
 }
 void tintty_run(
 	char (*peek_char)(),
@@ -1015,6 +1053,7 @@ void tintty_run(
 		my_4bit_palette[i] = default_4bit_palette[i];
 	}*/
 	// set up initial state
+	mutex_init(&my_mutex);
 	state.cursor_col = 0;
 	state.cursor_row = 0;
 	state.top_row = 0;

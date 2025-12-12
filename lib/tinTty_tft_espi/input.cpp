@@ -103,7 +103,7 @@ touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}",
 
          {KEY_ROW_D_X(8), KEY_WIDTH, 'n', 'N', 0},
          {KEY_ROW_D_X(9), KEY_WIDTH, 'm', 'M', 0},
-         {KEY_ROW_D_X(10), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30}, // UP
+         {KEY_ROW_D_X(10), KEY_WIDTH, KEYCODE_ARROW_START, KEYCODE_ARROW_START, 30}, // UP ARROW
          {KEY_ROW_D_X(11), KEY_WIDTH, '-', '+', 0},//',', '\\', 
 
          {KEY_ROW_D_X(12), TFT_AMPLADA - 1 - KEY_ROW_D_X(12), ':', ';', 0},//'.', '/'
@@ -119,9 +119,9 @@ touchKeyRow touchKeyRows[5] = { // INFO teclatNoH85 = ["[","]","\\","_","{","}",
 
          {KEY_ROW_E_X(3), (KEY_WIDTH * 5) + 12, ' ', ' ', 0},
 
-         {KEY_ROW_E_X(8) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17},  // ESQ LEFT
-         {KEY_ROW_E_X(9) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31}, // DN
-         {KEY_ROW_E_X(10) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16} // RT DRET
+         {KEY_ROW_E_X(8) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 3, KEYCODE_ARROW_START + 3, 17},  // LEFT ARROW
+         {KEY_ROW_E_X(9) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 1, KEYCODE_ARROW_START + 1, 31}, // DOWN ARROW
+         {KEY_ROW_E_X(10) + 8, KEY_WIDTH, KEYCODE_ARROW_START + 2, KEYCODE_ARROW_START + 2, 16} // RIGHT ARROW
 
      }}};
 
