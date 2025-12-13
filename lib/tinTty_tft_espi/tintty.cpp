@@ -36,34 +36,37 @@ void assureRefreshArea(int16_t x, int16_t y, int16_t w, int16_t h)
 }
 struct tintty_state
 {
-	// @todo consider storing cursor position as single int offset
-	int16_t cursor_col, cursor_row;
-	uint16_t bg_ansi_color, fg_ansi_color;
-	bool bold,underline, Strikethrough; //@todo do real bold via char sprite bool=TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent);
-	/*
-		underline, Strikethrough, italic
-	 */
-	// cursor mode
-	bool cursor_key_mode_application;
+    // @todo consider storing cursor position as single int offset
+    int16_t cursor_col, cursor_row;
+    uint16_t bg_ansi_color, fg_ansi_color;
+    bool bold,underline, Strikethrough; //@todo do real bold via char sprite bool=TFT_eSprite::pushToSprite(TFT_eSprite *dspr, int32_t x, int32_t y, uint16_t transparent);
+    /*
+        underline, Strikethrough, italic
+     */
+    // cursor mode
+    bool cursor_key_mode_application;
 
-	// saved DEC cursor info (in screen coords)
-	int16_t dec_saved_col, dec_saved_row, dec_saved_bg, dec_saved_fg;
-	uint8_t dec_saved_g4bank;
-	bool dec_saved_bold,dec_saved_underline, dec_saved_Strikethrough, dec_saved_no_wrap;
+    // saved DEC cursor info (in screen coords)
+    int16_t dec_saved_col, dec_saved_row, dec_saved_bg, dec_saved_fg;
+    uint8_t dec_saved_g4bank;
+    bool dec_saved_bold,dec_saved_underline, dec_saved_Strikethrough, dec_saved_no_wrap;
 
-	// @todo deal with integer overflow
-	int16_t top_row; // first displayed row in a logical scrollback buffer
-	bool no_wrap;
-	bool cursor_hidden;
+    // @todo deal with integer overflow
+    int16_t top_row; // first displayed row in a logical scrollback buffer
+    bool no_wrap;
+    bool cursor_hidden;
 
-	char out_char;
-	int16_t out_char_col, out_char_row;
-	uint8_t out_char_g4bank; // current set shift state, G0 to G3
-	int16_t out_clear_before, out_clear_after;
+    // NEW: wrap pending flag: true when last-written char was in final column
+    bool wrap_pending;
 
-	uint8_t g4bank_char_set[4];
+    char out_char;
+    int16_t out_char_col, out_char_row;
+    uint8_t out_char_g4bank; // current set shift state, G0 to G3
+    int16_t out_clear_before, out_clear_after;
 
-	int16_t idle_cycle_count; // @todo track during blocking reads mid-command
+    uint8_t g4bank_char_set[4];
+
+    int16_t idle_cycle_count; // @todo track during blocking reads mid-command
 };
 static tintty_state state;
 struct tintty_rendered
@@ -788,32 +791,63 @@ void _main(
     // start in default idle state
     char initial_character = read_char();
 
+    // If a non-printable control is received, cancel any pending wrap
+    if (!(initial_character >= 0x20 && initial_character <= 0x7e)) {
+        state.wrap_pending = false;
+    }
+
     if (initial_character >= 0x20 && initial_character <= 0x7e)
     {
         mutex_enter_blocking(&my_mutex);
+
+        // If a wrap was pending, perform the wrap now (unless no_wrap is set)
+        // IMPORTANT: perform wrap BEFORE assigning out_char_col so the incoming
+        // character is rendered in the next line (not ignored).
+        if (state.wrap_pending)
+        {
+            if (!state.no_wrap)
+            {
+                state.cursor_col = 0;
+                state.cursor_row += 1;
+            }
+            // clear pending wrap regardless of no_wrap: next char has been handled
+            state.wrap_pending = false;
+        }
+
         // output displayable character: record to state and bump cursor
         state.out_char = initial_character;
         state.out_char_col = state.cursor_col;
         state.out_char_row = state.cursor_row;
 
-        state.cursor_col += 1;
-        // handle wrapping / vscroll
-        if (state.cursor_col >= display->screen_col_count)
+        // If we wrote into the last column, mark wrap pending instead of wrapping immediately
+        if (state.cursor_col == (display->screen_col_count - 1) && !state.no_wrap)
         {
-            if (state.no_wrap)
+            // leave cursor_col at last column, but mark pending wrap
+            state.wrap_pending = true;
+        }
+        else
+        {
+            // normal advance
+            state.cursor_col += 1;
+            // handle wrapping / vscroll if we advanced past end (defensive)
+            if (state.cursor_col >= display->screen_col_count)
             {
-                state.cursor_col = display->screen_col_count - 1;
-            }
-            else
-            {
-                state.cursor_col = 0;
-                state.cursor_row += 1;
-                // top_row update will be done in _ensure_cursor_vscroll if needed
+                if (state.no_wrap)
+                {
+                    state.cursor_col = display->screen_col_count - 1;
+                }
+                else
+                {
+                    state.cursor_col = 0;
+                    state.cursor_row += 1;
+                    // top_row update will be done in _ensure_cursor_vscroll if needed
+                }
             }
         }
+
         mutex_exit(&my_mutex);
 
-        if (!state.no_wrap && state.cursor_col == 0)
+        if (!state.no_wrap && state.cursor_col == 0 && !state.wrap_pending)
             _ensure_cursor_vscroll(display);
 
         state.idle_cycle_count = 0;
@@ -825,6 +859,8 @@ void _main(
         case '\n':
             mutex_enter_blocking(&my_mutex);
             state.cursor_row += 1;
+            // newline cancels any pending wrap
+            state.wrap_pending = false;
             mutex_exit(&my_mutex);
             _ensure_cursor_vscroll(display);
             break;
@@ -832,12 +868,15 @@ void _main(
         case '\r':
             mutex_enter_blocking(&my_mutex);
             state.cursor_col = 0;
+            // cancel pending wrap when carriage return explicitly moves cursor
+            state.wrap_pending = false;
             mutex_exit(&my_mutex);
             break;
 
         case '\b':
             mutex_enter_blocking(&my_mutex);
             state.cursor_col -= 1;
+            state.wrap_pending = false; // backspace cancels pending wrap
             if (state.cursor_col < 0)
             {
                 if (state.no_wrap)
@@ -859,6 +898,7 @@ void _main(
             {
                 const int16_t tab_num = state.cursor_col / TAB_SIZE;
                 state.cursor_col = min(display->screen_col_count - 1, (tab_num + 1) * TAB_SIZE);
+                state.wrap_pending = false; // moving cursor cancels pending wrap
             }
             mutex_exit(&my_mutex);
             break;
@@ -870,24 +910,23 @@ void _main(
 
         case '\x0f':
             // Shift-In (use G0)
-            // see also the fun reason why these are called this way:
-            // https://en.wikipedia.org/wiki/Shift_Out_and_Shift_In_characters
             state.out_char_g4bank = 0;
+            state.wrap_pending = false;
             break;
 
         case '\x0e':
             // Shift-Out (use G1)
             state.out_char_g4bank = 1;
+            state.wrap_pending = false;
             break;
 
-			// default:
+        default:
+            // nothing, just animate cursor
+            break;
+        }
+    }
 
-			// nothing, just animate cursor
-			// state.idle_cycle_count = (state.idle_cycle_count + 1) % IDLE_CYCLE_MAX;
-		}
-	}
-
-	_render(display);
+    _render(display);
 }
 void vTaskReadSerial()
 {
@@ -1079,6 +1118,7 @@ void tintty_run(
 	state.g4bank_char_set[1] = 0;
 	state.g4bank_char_set[2] = 0;
 	state.g4bank_char_set[3] = 0;
+    state.wrap_pending = false; // NEW: ensure clear at start
 
 	rendered.cursor_col = -1;
 	rendered.cursor_row = -1;
