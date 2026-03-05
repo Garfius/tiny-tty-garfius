@@ -4,6 +4,18 @@
 #include <TFT_eSPI.h>// Hardware-specific library, configure at User_Setup.h
 
 /**
+ * marge = 1
+TINTTY_CHAR_WIDTH (5+marge) 6
+TINTTY_CHAR_HEIGHT (7+marge) 8
+font2 = 8x16
+
+FreeSans9pt7b	tft.setFreeFont(&FreeMono9pt7b);	
+	X= 11Y=18
+FONT2	tft.setTextFont(2);
+	H= 16 W=6
+GFXFF	tft.setTextFont(1);
+	H=8 W=6
+
  * ST7735 rows 16
  * ST7735 Cols 26
  * ILI9488 rows 24
